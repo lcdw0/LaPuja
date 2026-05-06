@@ -16,7 +16,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
+import com.example.lapuja.ui.screen.AuctionDetailScreen
+import com.example.lapuja.ui.screen.BidScreen
 import com.example.lapuja.ui.screen.CreateAuctionScreen
 import com.example.lapuja.ui.screen.HomeScreen
 import com.example.lapuja.ui.screen.LoginScreen
@@ -60,6 +61,28 @@ fun AppNavigation() {
         composable(Routes.HOME) {
             MainScreen(navController)
         }
+
+        composable(Routes.AUCTION_DETAIL) {
+            AuctionDetailScreen(
+                onBidClick = {
+                    navController.navigate(Routes.BID)
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Routes.BID) {
+            BidScreen(
+                onConfirmClick = {
+                    navController.popBackStack()
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }
 
@@ -72,23 +95,41 @@ fun MainScreen(navController: NavHostController) {
             NavigationBar {
                 NavigationBarItem(
                     selected = false,
-                    onClick = { bottomNavController.navigate(Routes.HOME) },
-                    icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
-                    label = { Text("Inicio") }
+                    onClick = {
+                        bottomNavController.navigate(Routes.HOME)
+                    },
+                    icon = {
+                        Icon(Icons.Default.Home, contentDescription = "Inicio")
+                    },
+                    label = {
+                        Text("Inicio")
+                    }
                 )
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = { bottomNavController.navigate(Routes.CREATE_AUCTION) },
-                    icon = { Icon(Icons.Default.AddCircle, contentDescription = "Crear Subasta") },
-                    label = { Text("Crear") }
+                    onClick = {
+                        bottomNavController.navigate(Routes.CREATE_AUCTION)
+                    },
+                    icon = {
+                        Icon(Icons.Default.AddCircle, contentDescription = "Crear Subasta")
+                    },
+                    label = {
+                        Text("Crear")
+                    }
                 )
 
                 NavigationBarItem(
                     selected = false,
-                    onClick = { bottomNavController.navigate(Routes.PROFILE) },
-                    icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
-                    label = { Text("Perfil") }
+                    onClick = {
+                        bottomNavController.navigate(Routes.PROFILE)
+                    },
+                    icon = {
+                        Icon(Icons.Default.Person, contentDescription = "Perfil")
+                    },
+                    label = {
+                        Text("Perfil")
+                    }
                 )
             }
         }
