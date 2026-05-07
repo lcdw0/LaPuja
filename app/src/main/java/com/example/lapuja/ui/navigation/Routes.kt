@@ -8,4 +8,5 @@ object Routes {
     const val PROFILE = "profile"
     const val AUCTION_DETAIL = "auction_detail"
     const val BID = "bid"
+    const val ADD_PAYMENT_METHOD = "add_payment_method"
 }

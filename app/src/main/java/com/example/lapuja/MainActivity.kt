@@ -34,6 +34,7 @@ import com.example.lapuja.ui.screens.PaymentMethodsScreen
 import com.example.lapuja.ui.screens.ProfileScreen
 import com.example.lapuja.ui.screens.RegisterScreen
 import com.example.lapuja.ui.theme.LaPujaTheme
+import com.example.lapuja.ui.screens.AddPaymentMethodScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -110,6 +111,19 @@ fun MainScreen(prefs: SharedPreferences) {
                 )
             }
 
+            composable("payment_methods") {
+                PaymentMethodsScreen(
+                    navController = navController
+                )
+            }
+
+            composable("add_payment_method") {
+                AddPaymentMethodScreen(
+                    navController = navController,
+                    prefs = prefs
+                )
+            }
+
             composable("register") {
                 RegisterScreen(
                     navController = navController,
@@ -172,10 +186,6 @@ fun MainScreen(prefs: SharedPreferences) {
 
             composable("my_bids") {
                 MyBidsScreen()
-            }
-
-            composable("payment_methods") {
-                PaymentMethodsScreen()
             }
         }
     }

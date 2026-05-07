@@ -7,9 +7,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 
 @Composable
-fun PaymentMethodsScreen() {
+fun PaymentMethodsScreen(
+    navController: NavController
+) {
 
     Column(
         modifier = Modifier
@@ -69,7 +72,9 @@ fun PaymentMethodsScreen() {
         Spacer(modifier = Modifier.height(28.dp))
 
         Button(
-            onClick = { },
+            onClick = {
+                navController.navigate("add_payment_method")
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
