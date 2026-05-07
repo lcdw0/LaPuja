@@ -27,6 +27,7 @@ fun RegisterScreen(
     var correo by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var ciudad by remember { mutableStateOf("") }
+    var cedula by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmarPassword by remember { mutableStateOf("") }
     var mostrarPassword by remember { mutableStateOf(false) }
@@ -152,6 +153,21 @@ fun RegisterScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         OutlinedTextField(
+                            value = cedula,
+                            onValueChange = {
+                                cedula = it
+                                mensaje = ""
+                            },
+                            label = {
+                                Text("Cédula / Documento de identidad")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
                             value = password,
                             onValueChange = {
                                 password = it
@@ -217,6 +233,7 @@ fun RegisterScreen(
                                         telefono.isBlank() ||
                                         ciudad.isBlank() ||
                                         password.isBlank() ||
+                                        cedula.isBlank() ||
                                         confirmarPassword.isBlank()
                                     ) {
                                         "Completá todos los campos"
@@ -230,6 +247,7 @@ fun RegisterScreen(
                                             .putString("correo", correo)
                                             .putString("telefono", telefono)
                                             .putString("ciudad", ciudad)
+                                            .putString("cedula", cedula)
                                             .putString("password", password)
                                             .apply()
 
