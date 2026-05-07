@@ -1,4 +1,4 @@
-package com.example.lapuja.screens
+package com.example.lapuja.ui.screens
 
 import android.content.SharedPreferences
 import androidx.compose.foundation.layout.*
