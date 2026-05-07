@@ -263,7 +263,7 @@ fun RegisterScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Registrarme")
+                            Text("Registrarme.")
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
