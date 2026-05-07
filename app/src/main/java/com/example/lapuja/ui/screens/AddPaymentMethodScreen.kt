@@ -172,7 +172,7 @@ fun AddPaymentMethodScreen(
                             shape = RoundedCornerShape(14.dp)
                         ) {
 
-                            Text("Guardar método")
+                            Text("Guardar método.")
                         }
                     }
                 }
