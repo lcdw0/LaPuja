@@ -23,9 +23,14 @@ import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.Bid
 import com.example.lapuja.ui.screens.AuctionDetailScreen
 import com.example.lapuja.ui.screens.AuctionScreen
+import com.example.lapuja.ui.screens.CreateAuctionScreen
+import com.example.lapuja.ui.screens.EditProfileScreen
 import com.example.lapuja.ui.screens.HistoryScreen
 import com.example.lapuja.ui.screens.HomeScreen
 import com.example.lapuja.ui.screens.LoginScreen
+import com.example.lapuja.ui.screens.MyAuctionsScreen
+import com.example.lapuja.ui.screens.MyBidsScreen
+import com.example.lapuja.ui.screens.PaymentMethodsScreen
 import com.example.lapuja.ui.screens.ProfileScreen
 import com.example.lapuja.ui.screens.RegisterScreen
 import com.example.lapuja.ui.theme.LaPujaTheme
@@ -129,6 +134,10 @@ fun MainScreen(prefs: SharedPreferences) {
                 )
             }
 
+            composable("create_auction") {
+                CreateAuctionScreen()
+            }
+
             composable("auction_detail") {
                 selectedAuction?.let { auction ->
                     AuctionDetailScreen(
@@ -151,6 +160,22 @@ fun MainScreen(prefs: SharedPreferences) {
                     prefs = prefs,
                     navController = navController
                 )
+            }
+
+            composable("edit_profile") {
+                EditProfileScreen()
+            }
+
+            composable("my_auctions") {
+                MyAuctionsScreen()
+            }
+
+            composable("my_bids") {
+                MyBidsScreen()
+            }
+
+            composable("payment_methods") {
+                PaymentMethodsScreen()
             }
         }
     }
