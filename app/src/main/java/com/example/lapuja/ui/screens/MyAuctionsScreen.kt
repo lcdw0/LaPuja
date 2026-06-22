@@ -1,18 +1,22 @@
-package com.example.lapuja.screens
+package com.example.lapuja.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.lapuja.data.Bid
 
 @Composable
-fun HistoryScreen(historial: List<Bid>) {
+fun MyAuctionsScreen() {
+
+    val subastas = listOf(
+        "iPhone 13 Pro",
+        "Laptop Gamer",
+        "Audífonos Pro"
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -23,43 +27,33 @@ fun HistoryScreen(historial: List<Bid>) {
         item {
 
             Text(
-                text = "📜 Historial",
+                text = "Mis Subastas",
                 fontSize = 30.sp
             )
 
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        items(historial) { bid ->
+        items(subastas) { subasta ->
 
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 15.dp)
+                    .padding(bottom = 16.dp)
             ) {
 
                 Column(
-                    modifier = Modifier.padding(15.dp)
+                    modifier = Modifier.padding(16.dp)
                 ) {
 
                     Text(
-                        text = "📦 ${bid.producto}",
+                        text = subasta,
                         fontSize = 22.sp
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Text(
-                        text = "💵 Precio: $${bid.precio}",
-                        fontSize = 18.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "🏆 Ganador: ${bid.ganador}",
-                        fontSize = 18.sp
-                    )
+                    Text("Estado: Activa")
                 }
             }
         }
