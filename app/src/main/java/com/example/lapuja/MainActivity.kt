@@ -214,7 +214,10 @@ fun MainScreen(prefs: SharedPreferences) {
             }
 
             composable("edit_profile") {
-                EditProfileScreen()
+                EditProfileScreen(
+                    prefs = prefs,
+                    navController = navController
+                )
             }
 
             composable("my_auctions") {

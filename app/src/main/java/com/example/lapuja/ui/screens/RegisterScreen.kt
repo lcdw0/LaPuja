@@ -17,12 +17,17 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.lapuja.data.remote.RetrofitClient
+import com.example.lapuja.data.remote.UsuarioRequest
+import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
     navController: NavController,
     prefs: SharedPreferences
 ) {
+    val scope = rememberCoroutineScope()
+
     var nombre by remember { mutableStateOf("") }
     var correo by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
@@ -31,6 +36,7 @@ fun RegisterScreen(
     var confirmarPassword by remember { mutableStateOf("") }
     var mostrarPassword by remember { mutableStateOf(false) }
     var mensaje by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -210,42 +216,74 @@ fun RegisterScreen(
 
                         Button(
                             onClick = {
-                                mensaje =
-                                    if (
-                                        nombre.isBlank() ||
-                                        correo.isBlank() ||
-                                        telefono.isBlank() ||
-                                        ciudad.isBlank() ||
-                                        password.isBlank() ||
-                                        confirmarPassword.isBlank()
-                                    ) {
-                                        "Completá todos los campos"
-                                    } else if (!correo.contains("@")) {
-                                        "Ingresá un correo válido"
-                                    } else if (password != confirmarPassword) {
-                                        "Las contraseñas no coinciden"
-                                    } else {
-                                        prefs.edit()
-                                            .putString("nombre", nombre)
-                                            .putString("correo", correo)
-                                            .putString("telefono", telefono)
-                                            .putString("ciudad", ciudad)
-                                            .putString("password", password)
-                                            .apply()
+                                if (
+                                    nombre.isBlank() ||
+                                    correo.isBlank() ||
+                                    telefono.isBlank() ||
+                                    ciudad.isBlank() ||
+                                    password.isBlank() ||
+                                    confirmarPassword.isBlank()
+                                ) {
+                                    mensaje = "Completá todos los campos"
+                                    return@Button
+                                }
 
-                                        navController.navigate("login") {
-                                            popUpTo("register") {
-                                                inclusive = true
+                                if (!correo.contains("@")) {
+                                    mensaje = "Ingresá un correo válido"
+                                    return@Button
+                                }
+
+                                if (password != confirmarPassword) {
+                                    mensaje = "Las contraseñas no coinciden"
+                                    return@Button
+                                }
+
+                                cargando = true
+                                mensaje = ""
+
+                                scope.launch {
+                                    try {
+                                        val response =
+                                            RetrofitClient.api.registrarUsuario(
+                                                UsuarioRequest(
+                                                    nombre = nombre,
+                                                    correo = correo,
+                                                    password = password
+                                                )
+                                            )
+
+                                        if (response.isSuccessful) {
+                                            val body = response.body()
+
+                                            if (body != null && body.ok) {
+                                                navController.navigate("login") {
+                                                    popUpTo("register") {
+                                                        inclusive = true
+                                                    }
+                                                }
+                                            } else {
+                                                mensaje = body?.mensaje ?: "No se pudo registrar"
                                             }
+                                        } else {
+                                            mensaje = "Error del servidor"
                                         }
-
-                                        ""
+                                    } catch (e: Exception) {
+                                        mensaje = "No se pudo conectar con la API"
+                                    } finally {
+                                        cargando = false
                                     }
+                                }
                             },
+                            enabled = !cargando,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Text("Registrarme")
+                            Text(
+                                if (cargando)
+                                    "Registrando..."
+                                else
+                                    "Registrarme"
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
