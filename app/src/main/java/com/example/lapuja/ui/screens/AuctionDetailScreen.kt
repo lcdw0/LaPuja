@@ -1,13 +1,13 @@
 package com.example.lapuja.ui.screens
 
+import android.content.SharedPreferences
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,12 +16,23 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.lapuja.data.AuctionItem
+import com.example.lapuja.data.Bid
 
 @Composable
 fun AuctionDetailScreen(
     auction: AuctionItem,
+    prefs: SharedPreferences,
+    historial: MutableList<Bid>,
     onBackClick: () -> Unit
 ) {
+    var saldo by remember {
+        mutableStateOf(prefs.getFloat("saldo", 10000.0f).toDouble())
+    }
+
+    var mensaje by remember {
+        mutableStateOf("")
+    }
+
     val puedePujar =
         auction.iniciada && auction.tiempo > 0 && auction.estado == "ACTIVA"
 
@@ -103,6 +114,13 @@ fun AuctionDetailScreen(
                 Column(
                     modifier = Modifier.padding(18.dp)
                 ) {
+                    Text(
+                        text = "Saldo disponible: $$saldo",
+                        fontSize = 15.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     Text(
                         text = "Oferta actual",
                         fontSize = 16.sp
@@ -221,13 +239,58 @@ fun AuctionDetailScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { },
+                onClick = {
+                    val incremento = 0.5
+
+                    if (!puedePujar) {
+                        mensaje = "Esta subasta no está disponible."
+                        return@Button
+                    }
+
+                    if (saldo < incremento) {
+                        mensaje = "No tienes saldo suficiente."
+                        return@Button
+                    }
+
+                    saldo -= incremento
+                    auction.precio += incremento
+                    auction.ganador = "Tú"
+                    auction.ofertas++
+
+                    historial.add(
+                        Bid(
+                            producto = auction.nombre,
+                            precio = auction.precio,
+                            ganador = "Tú"
+                        )
+                    )
+
+                    prefs.edit()
+                        .putFloat("saldo", saldo.toFloat())
+                        .apply()
+
+                    mensaje = "Puja realizada correctamente."
+                },
                 enabled = puedePujar,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
                     if (puedePujar) "🔥 Pujar ahora" else "Puja no disponible"
+                )
+            }
+
+            if (mensaje.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = mensaje,
+                    color = if (mensaje.contains("correctamente")) {
+                        Color(0xFF4CAF50)
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    fontSize = 16.sp
                 )
             }
 

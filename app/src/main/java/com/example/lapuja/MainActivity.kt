@@ -7,35 +7,54 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.*
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.example.lapuja.components.BottomNav
+import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.Bid
-import com.example.lapuja.screens.*
+import com.example.lapuja.ui.screens.AuctionDetailScreen
+import com.example.lapuja.ui.screens.AuctionScreen
+import com.example.lapuja.ui.screens.CreateAuctionScreen
+import com.example.lapuja.ui.screens.EditProfileScreen
+import com.example.lapuja.ui.screens.HistoryScreen
+import com.example.lapuja.ui.screens.HomeScreen
+import com.example.lapuja.ui.screens.LoginScreen
+import com.example.lapuja.ui.screens.MyAuctionsScreen
+import com.example.lapuja.ui.screens.MyBidsScreen
+import com.example.lapuja.ui.screens.PaymentMethodsScreen
+import com.example.lapuja.ui.screens.ProfileScreen
+import com.example.lapuja.ui.screens.RegisterScreen
 import com.example.lapuja.ui.theme.LaPujaTheme
 
 class MainActivity : ComponentActivity() {
 
-    lateinit var prefs: SharedPreferences
+    private lateinit var prefs: SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         prefs = getSharedPreferences("app", MODE_PRIVATE)
 
-        // saldo inicial
         if (!prefs.contains("saldo")) {
-            prefs.edit().putFloat("saldo", 10000.0f).apply()
+            prefs.edit()
+                .putFloat("saldo", 10000.0f)
+                .apply()
         }
 
         enableEdgeToEdge()
 
         setContent {
-
             LaPujaTheme {
-
-                MainScreen(prefs)
+                MainScreen(prefs = prefs)
             }
         }
     }
@@ -43,101 +62,175 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(prefs: SharedPreferences) {
-
     val navController = rememberNavController()
 
     val historial = remember {
-
         mutableStateListOf<Bid>()
     }
 
-    // 🔐 verificar sesión
-    val usuarioGuardado =
-        prefs.getString("correo", null)
+    val productos = remember {
+        mutableStateListOf(
+            AuctionItem(
+                nombre = "iPhone 13 Pro",
+                descripcion = "iPhone 13 Pro en excelente estado, con batería en buen rendimiento y cargador incluido.",
+                precioInicial = 5.0,
+                imagen = R.drawable.iphone,
+                categoria = "Tecnología",
+                fechaInicio = "Hoy"
+            ).apply {
+                estado = "ACTIVA"
+                iniciada = true
+                tiempo = 30
+            },
 
-    val inicio = if (usuarioGuardado == null) {
+            AuctionItem(
+                nombre = "Laptop Gamer",
+                descripcion = "Laptop gamer ideal para juegos y trabajos pesados. Incluye cargador original.",
+                precioInicial = 10.0,
+                imagen = R.drawable.laptop,
+                categoria = "Computadoras",
+                fechaInicio = "En 2 horas"
+            ).apply {
+                estado = "PROGRAMADA"
+                iniciada = false
+                tiempo = 60
+            },
 
+            AuctionItem(
+                nombre = "Audífonos Pro",
+                descripcion = "Audífonos inalámbricos con cancelación de ruido y estuche de carga.",
+                precioInicial = 3.0,
+                imagen = R.drawable.audifonos,
+                categoria = "Accesorios",
+                fechaInicio = "Hoy"
+            ).apply {
+                estado = "ACTIVA"
+                iniciada = true
+                tiempo = 45
+            }
+        )
+    }
+
+    var selectedAuction by remember {
+        mutableStateOf<AuctionItem?>(null)
+    }
+
+    val usuarioGuardado = prefs.getString("correo", null)
+
+    val startDestination = if (usuarioGuardado == null) {
         "login"
-
     } else {
-
         "home"
     }
 
     Scaffold(
-
         bottomBar = {
+            val currentRoute = navController
+                .currentBackStackEntryAsState()
+                .value
+                ?.destination
+                ?.route
 
-            val currentRoute =
-                navController.currentBackStackEntryAsState()
-                    .value?.destination?.route
-
-            // ocultar navbar en login/register
             if (
                 currentRoute != "login" &&
-                currentRoute != "register"
+                currentRoute != "register" &&
+                currentRoute != "auction_detail"
             ) {
-
-                BottomNav(navController)
+                BottomNav(navController = navController)
             }
         }
-
     ) { paddingValues ->
 
         NavHost(
             navController = navController,
-            startDestination = inicio,
+            startDestination = startDestination,
             modifier = Modifier.padding(paddingValues)
         ) {
-
-            // 🔐 LOGIN
             composable("login") {
-
                 LoginScreen(
-                    navController,
-                    prefs
+                    navController = navController,
+                    prefs = prefs
                 )
             }
 
-            // 📝 REGISTER
             composable("register") {
-
                 RegisterScreen(
-                    navController,
-                    prefs
+                    navController = navController,
+                    prefs = prefs
                 )
             }
 
-            // 🏠 HOME
             composable("home") {
-
-                HomeScreen(navController)
+                HomeScreen(
+                    navController = navController
+                )
             }
 
-            // 🔥 SUBASTAS
             composable("auction") {
-
                 AuctionScreen(
                     prefs = prefs,
+                    historial = historial,
+                    productos = productos,
+                    onAuctionClick = { auction ->
+                        selectedAuction = auction
+                        navController.navigate("auction_detail")
+                    }
+                )
+            }
+
+            composable("create_auction") {
+                CreateAuctionScreen(
+                    productos = productos,
+                    onAuctionCreated = {
+                        navController.navigate("auction")
+                    }
+                )
+            }
+
+            composable("auction_detail") {
+                selectedAuction?.let { auction ->
+                    AuctionDetailScreen(
+                        auction = auction,
+                        prefs = prefs,
+                        historial = historial,
+                        onBackClick = {
+                            navController.popBackStack()
+                        }
+                    )
+                }
+            }
+
+            composable("history") {
+                HistoryScreen(
                     historial = historial
                 )
             }
 
-            // 📜 HISTORIAL
-            composable("history") {
-
-                HistoryScreen(historial)
+            composable("profile") {
+                ProfileScreen(
+                    prefs = prefs,
+                    navController = navController
+                )
             }
 
-            // 👤 PERFIL
-            composable("profile") {
+            composable("edit_profile") {
+                EditProfileScreen()
+            }
 
-                ProfileScreen(
-
-                        prefs = prefs,
-                        navController = navController
-
+            composable("my_auctions") {
+                MyAuctionsScreen(
+                    productos = productos
                 )
+            }
+
+            composable("my_bids") {
+                MyBidsScreen(
+                    historial = historial
+                )
+            }
+
+            composable("payment_methods") {
+                PaymentMethodsScreen()
             }
         }
     }
