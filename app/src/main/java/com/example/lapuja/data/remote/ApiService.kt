@@ -99,4 +99,20 @@ interface ApiService {
     suspend fun marcarMetodoPrincipal(
         @Path("id") id: Long
     ): Response<ApiResponse>
+
+    @POST("api/wallet/{usuarioId}/recargar")
+    suspend fun recargarSaldo(
+        @Path("usuarioId") usuarioId: Long,
+        @Body request: RecargaRequest
+    ): Response<WalletResponse>
+
+    @GET("api/wallet/{usuarioId}/saldo")
+    suspend fun obtenerSaldo(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<WalletResponse>
+
+    @GET("api/wallet/{usuarioId}/movimientos")
+    suspend fun listarMovimientosWallet(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<List<WalletMovimientoResponse>>
 }

@@ -148,8 +148,8 @@ fun ProfileScreen(
 
         WalletCard(
             saldo = saldo,
-            onAddBalance = { navController.navigate("payment_methods") },
-            onHistory = { navController.navigate("history") }
+            onAddBalance = { navController.navigate("recharge_wallet") },
+            onHistory = { navController.navigate("wallet_history") }
         )
 
         Spacer(modifier = Modifier.height(18.dp))

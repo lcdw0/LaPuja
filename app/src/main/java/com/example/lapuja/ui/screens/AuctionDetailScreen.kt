@@ -117,8 +117,16 @@ fun AuctionDetailScreen(
                     )
                 )
 
-                if (response.isSuccessful) {
-                    mensaje = "Oferta realizada correctamente."
+                val resultado = response.body()
+
+                if (response.isSuccessful && resultado?.ok == true) {
+                    resultado.saldo?.let { nuevoSaldo ->
+                        prefs.edit()
+                            .putFloat("saldo", nuevoSaldo.toFloat())
+                            .apply()
+                    }
+
+                    mensaje = resultado.mensaje ?: "Oferta realizada correctamente."
 
                     historial.add(
                         Bid(
@@ -131,7 +139,7 @@ fun AuctionDetailScreen(
                     montoPersonalizado = ""
                     cargarSubasta()
                 } else {
-                    mensaje = "No se pudo realizar la puja."
+                    mensaje = resultado?.mensaje ?: "No se pudo realizar la puja."
                 }
             } catch (e: Exception) {
                 mensaje = "No se pudo conectar con la API."

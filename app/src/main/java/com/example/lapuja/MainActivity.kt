@@ -199,6 +199,17 @@ fun MainScreen(prefs: SharedPreferences) {
                     navController = navController
                 )
             }
+
+            composable("recharge_wallet") {
+                RechargeWalletScreen(
+                    navController = navController,
+                    prefs = prefs
+                )
+            }
+
+            composable("wallet_history") {
+                WalletHistoryScreen()
+            }
         }
     }
 }

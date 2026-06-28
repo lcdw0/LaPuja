@@ -77,9 +77,10 @@ data class PujaResponse(
     val usuarioId: Long? = null,
     val subastaId: Long? = null,
     val monto: Double? = null,
-    val fecha: String? = null
-)
+    val fecha: String? = null,
 
+    val saldo: Double? = null
+)
 data class FavoritoRequest(
     val usuarioId: Long,
     val subastaId: Long
@@ -121,4 +122,24 @@ data class MetodoPagoResponse(
 data class ApiResponse(
     val ok: Boolean,
     val mensaje: String?
+)
+
+data class WalletResponse(
+    val ok: Boolean,
+    val mensaje: String?,
+    val saldo: Double?
+)
+
+data class WalletMovimientoResponse(
+    val id: Long?,
+    val usuarioId: Long?,
+    val tipo: String?,
+    val monto: Double?,
+    val descripcion: String?,
+    val fecha: String?
+)
+
+data class RecargaRequest(
+    val metodoPagoId: Long,
+    val monto: Double
 )
