@@ -6,13 +6,18 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -35,7 +40,14 @@ fun EditProfileScreen(
 
     var nombre by remember { mutableStateOf(prefs.getString("nombre", "") ?: "") }
     var correo by remember { mutableStateOf(prefs.getString("correo", "") ?: "") }
-    var password by remember { mutableStateOf("") }
+    var telefono by remember { mutableStateOf(prefs.getString("telefono", "") ?: "") }
+    var ciudad by remember { mutableStateOf(prefs.getString("ciudad", "") ?: "") }
+    var biografia by remember { mutableStateOf(prefs.getString("biografia", "") ?: "") }
+
+    var passwordActual by remember { mutableStateOf("") }
+    var passwordNueva by remember { mutableStateOf("") }
+    var confirmarPassword by remember { mutableStateOf("") }
+
     var fotoPerfil by remember { mutableStateOf(prefs.getString("fotoPerfil", null)) }
     var imagenNuevaUri by remember { mutableStateOf<Uri?>(null) }
     var mensaje by remember { mutableStateOf("") }
@@ -73,6 +85,7 @@ fun EditProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(20.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         Text(
             text = "Editar perfil",
@@ -134,12 +147,97 @@ fun EditProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
-            value = password,
+            value = telefono,
             onValueChange = {
-                password = it
+                telefono = it
                 mensaje = ""
             },
-            label = { Text("Nueva contraseña opcional") },
+            label = { Text("Número de contacto") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = ciudad,
+            onValueChange = {
+                ciudad = it
+                mensaje = ""
+            },
+            label = { Text("Ciudad") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = biografia,
+            onValueChange = {
+                biografia = it
+                mensaje = ""
+            },
+            label = { Text("Biografía") },
+            minLines = 3,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(22.dp))
+
+        Text(
+            text = "Cambiar contraseña",
+            fontSize = 22.sp
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Solo completa estos campos si deseas cambiar tu contraseña.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = passwordActual,
+            onValueChange = {
+                passwordActual = it
+                mensaje = ""
+            },
+            label = { Text("Contraseña actual") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = passwordNueva,
+            onValueChange = {
+                passwordNueva = it
+                mensaje = ""
+            },
+            label = { Text("Nueva contraseña") },
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = confirmarPassword,
+            onValueChange = {
+                confirmarPassword = it
+                mensaje = ""
+            },
+            label = { Text("Confirmar nueva contraseña") },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         )
@@ -169,6 +267,40 @@ fun EditProfileScreen(
                 if (usuarioId == 0L) {
                     mensaje = "No se encontró el usuario activo."
                     return@Button
+                }
+
+                val quiereCambiarPassword =
+                    passwordActual.isNotBlank() ||
+                            passwordNueva.isNotBlank() ||
+                            confirmarPassword.isNotBlank()
+
+                if (quiereCambiarPassword) {
+                    when {
+                        passwordActual.isBlank() -> {
+                            mensaje = "Ingresa tu contraseña actual."
+                            return@Button
+                        }
+
+                        passwordNueva.isBlank() -> {
+                            mensaje = "Ingresa la nueva contraseña."
+                            return@Button
+                        }
+
+                        confirmarPassword.isBlank() -> {
+                            mensaje = "Confirma la nueva contraseña."
+                            return@Button
+                        }
+
+                        passwordNueva != confirmarPassword -> {
+                            mensaje = "Las nuevas contraseñas no coinciden."
+                            return@Button
+                        }
+
+                        passwordNueva.length < 8 -> {
+                            mensaje = "La nueva contraseña debe tener al menos 8 caracteres."
+                            return@Button
+                        }
+                    }
                 }
 
                 cargando = true
@@ -209,8 +341,13 @@ fun EditProfileScreen(
                             request = UsuarioUpdateRequest(
                                 nombre = nombre,
                                 correo = correo,
-                                password = password,
-                                fotoPerfil = fotoFinal
+                                passwordActual = if (quiereCambiarPassword) passwordActual else null,
+                                password = if (quiereCambiarPassword) passwordNueva else null,
+                                confirmarPassword = if (quiereCambiarPassword) confirmarPassword else null,
+                                fotoPerfil = fotoFinal,
+                                telefono = telefono,
+                                ciudad = ciudad,
+                                biografia = biografia
                             )
                         )
 
@@ -222,10 +359,17 @@ fun EditProfileScreen(
                                     .putString("nombre", usuario.nombre ?: nombre)
                                     .putString("correo", usuario.correo ?: correo)
                                     .putString("fotoPerfil", usuario.fotoPerfil ?: fotoFinal)
+                                    .putString("telefono", usuario.telefono ?: telefono)
+                                    .putString("ciudad", usuario.ciudad ?: ciudad)
+                                    .putString("biografia", usuario.biografia ?: biografia)
+                                    .putString("fechaRegistro", usuario.fechaRegistro ?: "")
                                     .apply()
 
                                 fotoPerfil = usuario.fotoPerfil ?: fotoFinal
                                 imagenNuevaUri = null
+                                passwordActual = ""
+                                passwordNueva = ""
+                                confirmarPassword = ""
                                 mensaje = "Perfil actualizado correctamente."
                             } else {
                                 mensaje = usuario?.mensaje ?: "No se pudo actualizar el perfil."
@@ -258,5 +402,7 @@ fun EditProfileScreen(
         ) {
             Text("Volver")
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }

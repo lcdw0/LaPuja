@@ -14,8 +14,13 @@ data class LoginRequest(
 data class UsuarioUpdateRequest(
     val nombre: String,
     val correo: String,
-    val password: String,
-    val fotoPerfil: String?
+    val passwordActual: String?,
+    val password: String?,
+    val confirmarPassword: String?,
+    val fotoPerfil: String?,
+    val telefono: String?,
+    val ciudad: String?,
+    val biografia: String?
 )
 
 data class UsuarioResponse(
@@ -24,7 +29,11 @@ data class UsuarioResponse(
     val id: Long?,
     val nombre: String?,
     val correo: String?,
-    val fotoPerfil: String?
+    val fotoPerfil: String?,
+    val telefono: String?,
+    val ciudad: String?,
+    val biografia: String?,
+    val fechaRegistro: String?
 )
 
 data class SubastaRequest(
@@ -48,6 +57,7 @@ data class SubastaResponse(
     val estado: String,
     val ofertas: Int,
     val ganador: String,
+    val ganadorId: Long?,
     val usuarioId: Long?,
     val fechaCreacion: String?,
     val fechaFin: String?
