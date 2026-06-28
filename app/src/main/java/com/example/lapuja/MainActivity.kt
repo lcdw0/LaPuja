@@ -193,6 +193,12 @@ fun MainScreen(prefs: SharedPreferences) {
             composable("payment_methods") {
                 PaymentMethodsScreen()
             }
+
+            composable("saved_auctions") {
+                SavedAuctionsScreen(
+                    navController = navController
+                )
+            }
         }
     }
 }
