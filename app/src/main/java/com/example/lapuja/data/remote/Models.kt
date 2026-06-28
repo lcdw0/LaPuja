@@ -96,3 +96,29 @@ data class ImagenResponse(
     val mensaje: String?,
     val url: String?
 )
+
+data class MetodoPagoRequest(
+    val usuarioId: Long,
+    val tipo: String,
+    val marca: String,
+    val titular: String,
+    val ultimos4: String,
+    val vencimiento: String,
+    val principal: Boolean
+)
+
+data class MetodoPagoResponse(
+    val id: Long?,
+    val usuarioId: Long?,
+    val tipo: String?,
+    val marca: String?,
+    val titular: String?,
+    val ultimos4: String?,
+    val vencimiento: String?,
+    val principal: Boolean?
+)
+
+data class ApiResponse(
+    val ok: Boolean,
+    val mensaje: String?
+)

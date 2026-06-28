@@ -79,4 +79,24 @@ interface ApiService {
     suspend fun subirImagenPerfil(
         @Part file: MultipartBody.Part
     ): Response<ImagenResponse>
+
+    @POST("api/metodos-pago")
+    suspend fun agregarMetodoPago(
+        @Body request: MetodoPagoRequest
+    ): Response<ApiResponse>
+
+    @GET("api/metodos-pago/usuario/{usuarioId}")
+    suspend fun listarMetodosPago(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<List<MetodoPagoResponse>>
+
+    @DELETE("api/metodos-pago/{id}")
+    suspend fun eliminarMetodoPago(
+        @Path("id") id: Long
+    ): Response<ApiResponse>
+
+    @PUT("api/metodos-pago/{id}/principal")
+    suspend fun marcarMetodoPrincipal(
+        @Path("id") id: Long
+    ): Response<ApiResponse>
 }
