@@ -38,6 +38,18 @@ interface ApiService {
     @POST("api/subastas")
     suspend fun crearSubasta(@Body request: SubastaRequest): Response<SubastaResponse>
 
+    @PUT("api/subastas/{id}")
+    suspend fun editarSubasta(
+        @Path("id") id: Long,
+        @Body request: SubastaRequest
+    ): Response<SubastaResponse>
+
+    @PUT("api/subastas/{id}/cancelar")
+    suspend fun cancelarSubasta(
+        @Path("id") id: Long,
+        @Body request: CancelarSubastaRequest
+    ): Response<SubastaResponse>
+
     @PUT("api/subastas/{id}/finalizar")
     suspend fun finalizarSubasta(@Path("id") id: Long): Response<SubastaResponse>
 

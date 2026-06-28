@@ -150,6 +150,7 @@ fun MainScreen(prefs: SharedPreferences) {
                     subastaId = subastaId,
                     prefs = prefs,
                     historial = historial,
+                    navController = navController,
                     onBackClick = {
                         navController.popBackStack()
                     }
@@ -179,7 +180,8 @@ fun MainScreen(prefs: SharedPreferences) {
 
             composable("my_auctions") {
                 MyAuctionsScreen(
-                    productos = productos
+                    productos = productos,
+                    navController = navController
                 )
             }
 
@@ -213,6 +215,29 @@ fun MainScreen(prefs: SharedPreferences) {
 
             composable("held_funds") {
                 HeldFundsScreen()
+            }
+
+            composable(
+                route = "edit_auction/{subastaId}",
+                arguments = listOf(
+                    navArgument("subastaId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val subastaId = backStackEntry.arguments?.getLong("subastaId") ?: 0L
+
+                EditAuctionScreen(
+                    subastaId = subastaId,
+                    onAuctionUpdated = {
+                        navController.navigate("my_auctions") {
+                            popUpTo("edit_auction/{subastaId}") {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
             }
         }
     }

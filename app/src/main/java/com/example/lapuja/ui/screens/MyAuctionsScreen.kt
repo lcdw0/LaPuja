@@ -10,10 +10,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavController
 import com.example.lapuja.data.AuctionItem
+import com.example.lapuja.data.remote.CancelarSubastaRequest
 import com.example.lapuja.data.remote.RetrofitClient
 import com.example.lapuja.data.remote.SubastaResponse
 import com.example.lapuja.ui.components.AppImage
@@ -21,7 +23,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MyAuctionsScreen(
-    productos: MutableList<AuctionItem>
+    productos: MutableList<AuctionItem>,
+    navController: NavController
 ) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("app", Context.MODE_PRIVATE)
@@ -31,6 +34,9 @@ fun MyAuctionsScreen(
     var misSubastas by remember { mutableStateOf<List<SubastaResponse>>(emptyList()) }
     var cargando by remember { mutableStateOf(true) }
     var mensaje by remember { mutableStateOf("") }
+
+    var mostrarDialogoCancelar by remember { mutableStateOf(false) }
+    var subastaSeleccionada by remember { mutableStateOf<SubastaResponse?>(null) }
 
     fun cargarMisSubastas() {
         scope.launch {
@@ -55,6 +61,26 @@ fun MyAuctionsScreen(
                 mensaje = "No se pudo conectar con la API."
             } finally {
                 cargando = false
+            }
+        }
+    }
+
+    fun cancelarSubasta(subasta: SubastaResponse) {
+        scope.launch {
+            try {
+                val response = RetrofitClient.api.cancelarSubasta(
+                    id = subasta.id,
+                    request = CancelarSubastaRequest(usuarioId = usuarioId)
+                )
+
+                if (response.isSuccessful) {
+                    mensaje = "Subasta cancelada correctamente."
+                    cargarMisSubastas()
+                } else {
+                    mensaje = "No se pudo cancelar la subasta."
+                }
+            } catch (e: Exception) {
+                mensaje = "No se pudo conectar con la API."
             }
         }
     }
@@ -103,7 +129,11 @@ fun MyAuctionsScreen(
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
                             text = mensaje,
-                            color = MaterialTheme.colorScheme.error
+                            color = if (mensaje.contains("correctamente")) {
+                                Color(0xFF4CAF50)
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
                         )
                     }
                 }
@@ -112,7 +142,7 @@ fun MyAuctionsScreen(
             }
         }
 
-        if (!cargando && mensaje.isEmpty() && misSubastas.isEmpty()) {
+        if (!cargando && misSubastas.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -139,10 +169,15 @@ fun MyAuctionsScreen(
         }
 
         items(misSubastas.reversed()) { auction ->
+            val puedeModificar = auction.estado == "ACTIVA" && auction.ofertas == 0
+
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp),
+                    .padding(bottom = 14.dp)
+                    .clickable {
+                        navController.navigate("auction_detail/${auction.id}")
+                    },
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Column {
@@ -165,6 +200,7 @@ fun MyAuctionsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(text = "Categoría: ${auction.categoria}")
+                        Text(text = "Precio inicial: $${auction.precioInicial}")
                         Text(text = "Precio actual: $${auction.precioActual}")
                         Text(text = "Ofertas: ${auction.ofertas}")
                         Text(text = "Ganador: ${auction.ganador}")
@@ -175,14 +211,39 @@ fun MyAuctionsScreen(
                             text = "Estado: ${auction.estado}",
                             color = when (auction.estado) {
                                 "ACTIVA" -> Color(0xFF4CAF50)
-                                "PROGRAMADA" -> Color(0xFFFFC107)
+                                "CANCELADA" -> Color.Gray
                                 else -> Color(0xFFFF6B81)
                             }
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        if (auction.estado == "ACTIVA") {
+                        if (puedeModificar) {
+                            Button(
+                                onClick = {
+                                    navController.navigate("edit_auction/${auction.id}")
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text("Editar")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    subastaSeleccionada = auction
+                                    mostrarDialogoCancelar = true
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text("Cancelar subasta")
+                            }
+                        }
+
+                        if (auction.estado == "ACTIVA" && auction.ofertas > 0) {
                             OutlinedButton(
                                 onClick = {
                                     scope.launch {
@@ -214,5 +275,45 @@ fun MyAuctionsScreen(
         item {
             Spacer(modifier = Modifier.height(20.dp))
         }
+    }
+
+    if (mostrarDialogoCancelar && subastaSeleccionada != null) {
+        AlertDialog(
+            onDismissRequest = {
+                mostrarDialogoCancelar = false
+                subastaSeleccionada = null
+            },
+            title = {
+                Text("Cancelar subasta")
+            },
+            text = {
+                Text("¿Seguro que deseas cancelar esta subasta? Esta acción no se puede deshacer.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val subasta = subastaSeleccionada
+                        mostrarDialogoCancelar = false
+                        subastaSeleccionada = null
+
+                        if (subasta != null) {
+                            cancelarSubasta(subasta)
+                        }
+                    }
+                ) {
+                    Text("Sí, cancelar")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        mostrarDialogoCancelar = false
+                        subastaSeleccionada = null
+                    }
+                ) {
+                    Text("Volver")
+                }
+            }
+        )
     }
 }

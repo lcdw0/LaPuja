@@ -158,3 +158,7 @@ data class SaldoRetenidoItemResponse(
     val estado: String?,
     val fechaFin: String?
 )
+
+data class CancelarSubastaRequest(
+    val usuarioId: Long
+)
