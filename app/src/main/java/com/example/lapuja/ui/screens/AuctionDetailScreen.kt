@@ -18,10 +18,11 @@ import androidx.compose.ui.unit.sp
 import com.example.lapuja.data.Bid
 import com.example.lapuja.data.remote.*
 import com.example.lapuja.ui.components.AppImage
+import com.example.lapuja.ui.components.AppProfileImage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
-import com.example.lapuja.ui.components.AppProfileImage
 
 @Composable
 fun AuctionDetailScreen(
@@ -40,12 +41,16 @@ fun AuctionDetailScreen(
     var guardada by remember { mutableStateOf(false) }
     var favoritoId by remember { mutableStateOf<Long?>(null) }
 
+    var saldoActual by remember {
+        mutableStateOf(prefs.getFloat("saldo", 10000f).toDouble())
+    }
+
     val usuarioId = prefs.getLong("usuarioId", 0L)
 
-    fun cargarSubasta() {
+    fun cargarSubasta(mostrarCarga: Boolean = true) {
         scope.launch {
             try {
-                cargando = true
+                if (mostrarCarga) cargando = true
 
                 val response = RetrofitClient.api.obtenerSubasta(subastaId)
 
@@ -80,25 +85,33 @@ fun AuctionDetailScreen(
             } catch (e: Exception) {
                 mensaje = "No se pudo conectar con la API."
             } finally {
-                cargando = false
+                if (mostrarCarga) cargando = false
             }
         }
     }
 
     LaunchedEffect(subastaId) {
-        cargarSubasta()
+        cargarSubasta(true)
+
+        while (true) {
+            delay(5000)
+            cargarSubasta(false)
+        }
     }
 
     fun realizarPuja(monto: Double) {
         val item = subasta ?: return
+
+        val finalizadaPorFecha = subastaFinalizadaPorFecha(item.fechaFin)
 
         if (usuarioId == 0L) {
             mensaje = "Debes iniciar sesión para pujar."
             return
         }
 
-        if (item.estado != "ACTIVA") {
-            mensaje = "La subasta no está activa."
+        if (item.estado != "ACTIVA" || finalizadaPorFecha) {
+            mensaje = "La subasta ya finalizó."
+            cargarSubasta(false)
             return
         }
 
@@ -121,6 +134,8 @@ fun AuctionDetailScreen(
 
                 if (response.isSuccessful && resultado?.ok == true) {
                     resultado.saldo?.let { nuevoSaldo ->
+                        saldoActual = nuevoSaldo
+
                         prefs.edit()
                             .putFloat("saldo", nuevoSaldo.toFloat())
                             .apply()
@@ -137,9 +152,10 @@ fun AuctionDetailScreen(
                     )
 
                     montoPersonalizado = ""
-                    cargarSubasta()
+                    cargarSubasta(false)
                 } else {
                     mensaje = resultado?.mensaje ?: "No se pudo realizar la puja."
+                    cargarSubasta(false)
                 }
             } catch (e: Exception) {
                 mensaje = "No se pudo conectar con la API."
@@ -169,10 +185,15 @@ fun AuctionDetailScreen(
         return
     }
 
-    val puedePujar = auction.estado == "ACTIVA"
+    val finalizadaPorFecha = subastaFinalizadaPorFecha(auction.fechaFin)
+    val estadoVisual =
+        if (auction.estado == "ACTIVA" && finalizadaPorFecha) "FINALIZADA"
+        else auction.estado
+
+    val puedePujar = estadoVisual == "ACTIVA"
 
     val estadoColor =
-        when (auction.estado) {
+        when (estadoVisual) {
             "ACTIVA" -> Color(0xFF4CAF50)
             "PROGRAMADA" -> Color(0xFFFFC107)
             else -> Color(0xFFFF6B81)
@@ -220,7 +241,7 @@ fun AuctionDetailScreen(
                     color = estadoColor.copy(alpha = 0.18f)
                 ) {
                     Text(
-                        text = auction.estado,
+                        text = estadoVisual,
                         color = estadoColor,
                         modifier = Modifier.padding(
                             horizontal = 14.dp,
@@ -240,7 +261,10 @@ fun AuctionDetailScreen(
                 )
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(text = "Oferta actual", fontSize = 16.sp)
+                    Text(
+                        text = if (puedePujar) "Oferta actual" else "Oferta final",
+                        fontSize = 16.sp
+                    )
 
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -249,7 +273,12 @@ fun AuctionDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(text = "Ofertas realizadas: ${auction.ofertas}")
-                    Text(text = "Ganador actual: ${auction.ganador}")
+                    Text(
+                        text = if (puedePujar)
+                            "Ganador actual: ${auction.ganador}"
+                        else
+                            "Ganador final: ${auction.ganador}"
+                    )
                 }
             }
 
@@ -290,6 +319,7 @@ fun AuctionDetailScreen(
                             .size(52.dp)
                             .clip(CircleShape)
                     )
+
                     Spacer(modifier = Modifier.width(14.dp))
 
                     Column {
@@ -339,7 +369,7 @@ fun AuctionDetailScreen(
                                 mensaje = "Subasta guardada."
                             }
 
-                            cargarSubasta()
+                            cargarSubasta(false)
                         } catch (e: Exception) {
                             mensaje = "No se pudo actualizar favoritos."
                         }
@@ -367,59 +397,63 @@ fun AuctionDetailScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "$${prefs.getFloat("saldo", 10000f).toDouble()}",
+                        text = "$${String.format("%.2f", saldoActual)}",
                         fontSize = 24.sp
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Button(
-                        onClick = {
-                            realizarPuja(auction.precioActual + 0.5)
-                        },
-                        enabled = puedePujar,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text(
-                            if (puedePujar) "🔥 Pujar +$0.50" else "Puja no disponible"
+                    if (puedePujar) {
+                        Button(
+                            onClick = {
+                                realizarPuja(auction.precioActual + 0.5)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("🔥 Pujar +$0.50")
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = montoPersonalizado,
+                            onValueChange = {
+                                montoPersonalizado = it
+                                mensaje = ""
+                            },
+                            label = { Text("Monto personalizado") },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    OutlinedTextField(
-                        value = montoPersonalizado,
-                        onValueChange = {
-                            montoPersonalizado = it
-                            mensaje = ""
-                        },
-                        label = { Text("Monto personalizado") },
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Number
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    )
+                        OutlinedButton(
+                            onClick = {
+                                val monto = montoPersonalizado.toDoubleOrNull()
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                                if (monto == null) {
+                                    mensaje = "Ingrese un monto válido."
+                                    return@OutlinedButton
+                                }
 
-                    OutlinedButton(
-                        onClick = {
-                            val monto = montoPersonalizado.toDoubleOrNull()
-
-                            if (monto == null) {
-                                mensaje = "Ingrese un monto válido."
-                                return@OutlinedButton
-                            }
-
-                            realizarPuja(monto)
-                        },
-                        enabled = puedePujar,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Text("Ofertar monto personalizado")
+                                realizarPuja(monto)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text("Ofertar monto personalizado")
+                        }
+                    } else {
+                        Text(
+                            text = "Esta subasta ya finalizó. No se pueden realizar más pujas.",
+                            color = Color.Gray,
+                            fontSize = 16.sp
+                        )
                     }
                 }
             }
@@ -441,7 +475,7 @@ fun AuctionDetailScreen(
                 )
             }
 
-            if (auction.estado == "FINALIZADA") {
+            if (!puedePujar) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(text = "Subasta terminada", fontSize = 18.sp)
@@ -487,6 +521,20 @@ fun formatearFecha(fecha: String?): String {
         formatoSalida.format(date!!)
     } catch (e: Exception) {
         fecha
+    }
+}
+
+private fun subastaFinalizadaPorFecha(fechaFin: String?): Boolean {
+    if (fechaFin.isNullOrBlank()) return false
+
+    return try {
+        val fechaLimpia = fechaFin.substringBefore(".")
+        val formatoEntrada = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+        val date = formatoEntrada.parse(fechaLimpia)
+
+        date != null && date.time <= System.currentTimeMillis()
+    } catch (e: Exception) {
+        false
     }
 }
 

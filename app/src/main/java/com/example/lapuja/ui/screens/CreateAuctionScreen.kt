@@ -30,6 +30,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,60 +60,86 @@ fun CreateAuctionScreen(
     var imagenUri by remember { mutableStateOf<Uri?>(null) }
 
     val categorias = listOf(
-        "Tecnología",
-        "Computadoras",
-        "Celulares",
-        "Videojuegos",
-        "Electrodomésticos",
-        "Vehículos",
-        "Ropa",
-        "Hogar",
-        "Coleccionables",
-        "Otros"
+        "Tecnología", "Computadoras", "Celulares", "Videojuegos",
+        "Electrodomésticos", "Vehículos", "Ropa", "Hogar",
+        "Coleccionables", "Otros"
     )
 
     val launcherImagen = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        if (uri != null) {
-            imagenUri = uri
-        }
+        if (uri != null) imagenUri = uri
     }
 
-    val datePickerState = rememberDatePickerState()
+    val datePickerState = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val hoy = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                val fechaSeleccionada = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                    timeInMillis = utcTimeMillis
+                }
+
+                val fechaLocal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, fechaSeleccionada.get(Calendar.YEAR))
+                    set(Calendar.MONTH, fechaSeleccionada.get(Calendar.MONTH))
+                    set(Calendar.DAY_OF_MONTH, fechaSeleccionada.get(Calendar.DAY_OF_MONTH))
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                return fechaLocal.timeInMillis >= hoy.timeInMillis
+            }
+        }
+    )
+
     val timePickerState = rememberTimePickerState(
         initialHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
         initialMinute = Calendar.getInstance().get(Calendar.MINUTE),
-        is24Hour = false
+        is24Hour = true
     )
 
-    fun fechaTexto(): String {
-        val millis = fechaMillis ?: return ""
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = millis
-        horaSeleccionada?.let { cal.set(Calendar.HOUR_OF_DAY, it) }
-        minutoSeleccionado?.let { cal.set(Calendar.MINUTE, it) }
+    fun construirFechaFinal(): Calendar? {
+        val millis = fechaMillis ?: return null
+        val hora = horaSeleccionada ?: return null
+        val minuto = minutoSeleccionado ?: return null
 
-        return SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
-            .format(cal.time)
+        val fechaUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = millis
+        }
+
+        return Calendar.getInstance().apply {
+            set(Calendar.YEAR, fechaUtc.get(Calendar.YEAR))
+            set(Calendar.MONTH, fechaUtc.get(Calendar.MONTH))
+            set(Calendar.DAY_OF_MONTH, fechaUtc.get(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, hora)
+            set(Calendar.MINUTE, minuto)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+    }
+
+    fun fechaTexto(): String {
+        val cal = construirFechaFinal() ?: return ""
+        return SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault()).format(cal.time)
     }
 
     fun fechaApi(): String {
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = fechaMillis ?: 0L
-        cal.set(Calendar.HOUR_OF_DAY, horaSeleccionada ?: 23)
-        cal.set(Calendar.MINUTE, minutoSeleccionado ?: 59)
-        cal.set(Calendar.SECOND, 0)
-
-        return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
-            .format(cal.time)
+        val cal = construirFechaFinal() ?: Calendar.getInstance()
+        return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(cal.time)
     }
 
     fun crearParteImagen(context: Context, uri: Uri): MultipartBody.Part? {
         return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use {
-                it.readBytes()
-            } ?: return null
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: return null
 
             val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
 
@@ -217,9 +244,7 @@ fun CreateAuctionScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
                 value = fechaTexto(),
                 onValueChange = {},
@@ -233,18 +258,14 @@ fun CreateAuctionScreen(
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .clickable {
-                        mostrarFecha = true
-                    }
+                    .clickable { mostrarFecha = true }
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = {
-                launcherImagen.launch(arrayOf("image/*"))
-            },
+            onClick = { launcherImagen.launch(arrayOf("image/*")) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
@@ -344,14 +365,10 @@ fun CreateAuctionScreen(
                     }
                 }
 
-                val fechaElegida = Calendar.getInstance()
-                fechaElegida.timeInMillis = fechaMillis!!
-                fechaElegida.set(Calendar.HOUR_OF_DAY, horaSeleccionada!!)
-                fechaElegida.set(Calendar.MINUTE, minutoSeleccionado!!)
-                fechaElegida.set(Calendar.SECOND, 0)
+                val fechaElegida = construirFechaFinal()
 
-                if (fechaElegida.timeInMillis <= System.currentTimeMillis()) {
-                    error = "La fecha de finalización debe ser posterior a la fecha actual."
+                if (fechaElegida == null || fechaElegida.timeInMillis <= System.currentTimeMillis()) {
+                    error = "La fecha y hora de finalización debe ser posterior a la actual."
                     return@Button
                 }
 
@@ -432,7 +449,14 @@ fun CreateAuctionScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        fechaMillis = datePickerState.selectedDateMillis
+                        val seleccion = datePickerState.selectedDateMillis
+
+                        if (seleccion == null) {
+                            error = "Seleccione una fecha."
+                            return@TextButton
+                        }
+
+                        fechaMillis = seleccion
                         mostrarFecha = false
                         mostrarHora = true
                     }
@@ -459,6 +483,7 @@ fun CreateAuctionScreen(
                         horaSeleccionada = timePickerState.hour
                         minutoSeleccionado = timePickerState.minute
                         mostrarHora = false
+                        error = ""
                     }
                 ) {
                     Text("Aceptar")

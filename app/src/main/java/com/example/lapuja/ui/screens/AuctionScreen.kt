@@ -43,7 +43,7 @@ fun AuctionScreen(
     var favoritosIds by remember { mutableStateOf(setOf<Long>()) }
     var favoritosMap by remember { mutableStateOf<Map<Long, Long>>(emptyMap()) }
 
-    val saldo by remember {
+    var saldo by remember {
         mutableStateOf(prefs.getFloat("saldo", 10000.0f).toDouble())
     }
 
@@ -99,16 +99,17 @@ fun AuctionScreen(
 
     LaunchedEffect(Unit) {
         cargarDatos()
-    }
 
-    LaunchedEffect(Unit) {
         while (true) {
-            delay(10000)
+            delay(5000)
             cargarDatos()
         }
     }
 
     val subastasFiltradas = subastas.filter { subasta ->
+        val tiempoCalculado = calcularTiempoRestante(subasta.fechaFin)
+        val estadoVisual = estadoVisualSubasta(subasta.estado, tiempoCalculado)
+
         val coincideBusqueda =
             subasta.nombre.contains(busqueda, ignoreCase = true) ||
                     subasta.categoria.contains(busqueda, ignoreCase = true)
@@ -119,8 +120,8 @@ fun AuctionScreen(
             when (filtroSeleccionado) {
                 "Todas" -> true
                 "Guardadas" -> estaGuardada
-                "Activas" -> subasta.estado == "ACTIVA"
-                "Finalizadas" -> subasta.estado == "FINALIZADA"
+                "Activas" -> estadoVisual == "ACTIVA"
+                "Finalizadas" -> estadoVisual == "FINALIZADA"
                 else -> subasta.categoria == filtroSeleccionado
             }
 
@@ -207,14 +208,17 @@ fun AuctionScreen(
         items(subastasFiltradas) { subasta ->
 
             val guardada = favoritosIds.contains(subasta.id)
-            val tiempoRestante = calcularTiempoRestante(subasta.fechaFin)
+            val tiempoCalculado = calcularTiempoRestante(subasta.fechaFin)
+            val estadoVisual = estadoVisualSubasta(subasta.estado, tiempoCalculado)
 
-            val puedePujar =
-                subasta.estado == "ACTIVA" &&
-                        tiempoRestante != "Finalizada"
+            val tiempoRestante =
+                if (estadoVisual == "FINALIZADA") "Finalizada"
+                else tiempoCalculado
+
+            val puedePujar = estadoVisual == "ACTIVA"
 
             val estadoColor =
-                when (subasta.estado) {
+                when (estadoVisual) {
                     "ACTIVA" -> Color(0xFF4CAF50)
                     "PROGRAMADA" -> Color(0xFFFFC107)
                     else -> Color(0xFFFF6B81)
@@ -225,7 +229,7 @@ fun AuctionScreen(
                     .fillMaxWidth()
                     .padding(bottom = 20.dp)
                     .clickable {
-                        onAuctionClick(subasta.toAuctionItem())
+                        onAuctionClick(subasta.toAuctionItem(estadoVisual))
                     },
                 shape = RoundedCornerShape(22.dp)
             ) {
@@ -263,7 +267,7 @@ fun AuctionScreen(
                                 color = estadoColor.copy(alpha = 0.18f)
                             ) {
                                 Text(
-                                    text = subasta.estado,
+                                    text = estadoVisual,
                                     color = estadoColor,
                                     modifier = Modifier.padding(
                                         horizontal = 12.dp,
@@ -276,7 +280,7 @@ fun AuctionScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         Text(
-                            text = "Precio actual",
+                            text = if (puedePujar) "Precio actual" else "Precio final",
                             color = Color.Gray
                         )
 
@@ -288,13 +292,20 @@ fun AuctionScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text("Ofertas realizadas: ${subasta.ofertas}")
-                        Text("Ganador actual: ${subasta.ganador}")
+
+                        Text(
+                            if (puedePujar)
+                                "Ganador actual: ${subasta.ganador}"
+                            else
+                                "Ganador final: ${subasta.ganador}"
+                        )
+
                         Text("Tiempo restante: $tiempoRestante")
 
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Text(
-                            text = "Saldo disponible: $$saldo",
+                            text = "Saldo disponible: $${String.format("%.2f", saldo)}",
                             fontSize = 15.sp,
                             color = Color.Gray
                         )
@@ -351,6 +362,12 @@ fun AuctionScreen(
                                         return@Button
                                     }
 
+                                    if (!puedePujar) {
+                                        mensaje = "La subasta ya finalizó."
+                                        cargarDatos()
+                                        return@Button
+                                    }
+
                                     val nuevaOferta = subasta.precioActual + 0.5
 
                                     scope.launch {
@@ -363,7 +380,17 @@ fun AuctionScreen(
                                                 )
                                             )
 
-                                            if (response.isSuccessful) {
+                                            val resultado = response.body()
+
+                                            if (response.isSuccessful && resultado?.ok == true) {
+                                                resultado.saldo?.let { nuevoSaldo ->
+                                                    saldo = nuevoSaldo
+
+                                                    prefs.edit()
+                                                        .putFloat("saldo", nuevoSaldo.toFloat())
+                                                        .apply()
+                                                }
+
                                                 historial.add(
                                                     Bid(
                                                         producto = subasta.nombre,
@@ -372,9 +399,12 @@ fun AuctionScreen(
                                                     )
                                                 )
 
+                                                mensaje = resultado.mensaje ?: ""
                                                 cargarDatos()
                                             } else {
-                                                mensaje = "No se pudo realizar la puja."
+                                                mensaje = resultado?.mensaje
+                                                    ?: "No se pudo realizar la puja."
+                                                cargarDatos()
                                             }
                                         } catch (e: Exception) {
                                             mensaje = "No se pudo conectar con la API."
@@ -393,7 +423,7 @@ fun AuctionScreen(
 
                         AnimatedVisibility(
                             visible = subasta.ganador == prefs.getString("nombre", "")
-                                    && subasta.estado == "ACTIVA"
+                                    && puedePujar
                         ) {
                             Column {
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -406,7 +436,7 @@ fun AuctionScreen(
                             }
                         }
 
-                        if (subasta.estado == "FINALIZADA" || tiempoRestante == "Finalizada") {
+                        if (!puedePujar) {
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
@@ -444,7 +474,9 @@ fun ImagenSubastaLista(
     )
 }
 
-private fun SubastaResponse.toAuctionItem(): AuctionItem {
+private fun SubastaResponse.toAuctionItem(
+    estadoVisual: String
+): AuctionItem {
     return AuctionItem(
         nombre = nombre,
         descripcion = descripcion,
@@ -455,10 +487,10 @@ private fun SubastaResponse.toAuctionItem(): AuctionItem {
     ).apply {
         idApi = id
         precio = precioActual
-        estado = estado
+        estado = estadoVisual
         ofertas = ofertas
         ganador = ganador
-        iniciada = estado == "ACTIVA"
+        iniciada = estadoVisual == "ACTIVA"
         tiempo = 0
     }
 }
@@ -482,11 +514,29 @@ private fun calcularTiempoRestante(fechaFin: String?): String {
 
             when {
                 dias > 0 -> "${dias}d ${horas}h"
+
                 horas > 0 -> "${horas}h ${minutos}m"
-                else -> "${minutos}m"
+
+                minutos > 0 -> "${minutos}m"
+
+                else -> {
+                    val segundos = TimeUnit.MILLISECONDS.toSeconds(diferencia)
+                    "${segundos}s"
+                }
             }
         }
     } catch (e: Exception) {
         "No disponible"
+    }
+}
+
+private fun estadoVisualSubasta(
+    estadoBackend: String,
+    tiempoRestante: String
+): String {
+    return if (estadoBackend == "ACTIVA" && tiempoRestante == "Finalizada") {
+        "FINALIZADA"
+    } else {
+        estadoBackend
     }
 }
