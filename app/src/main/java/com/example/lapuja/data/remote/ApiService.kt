@@ -115,4 +115,9 @@ interface ApiService {
     suspend fun listarMovimientosWallet(
         @Path("usuarioId") usuarioId: Long
     ): Response<List<WalletMovimientoResponse>>
+
+    @GET("api/wallet/{usuarioId}/retenido")
+    suspend fun obtenerSaldoRetenido(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<SaldoRetenidoResponse>
 }

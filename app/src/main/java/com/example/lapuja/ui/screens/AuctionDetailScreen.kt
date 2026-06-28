@@ -69,6 +69,7 @@ fun AuctionDetailScreen(
                     }
 
                     if (usuarioId != 0L) {
+
                         val responseFavoritos = RetrofitClient.api.listarFavoritos(usuarioId)
 
                         if (responseFavoritos.isSuccessful) {
@@ -77,6 +78,19 @@ fun AuctionDetailScreen(
 
                             guardada = favorito != null
                             favoritoId = favorito?.id
+                        }
+
+                        val responseSaldo = RetrofitClient.api.obtenerSaldo(usuarioId)
+
+                        if (responseSaldo.isSuccessful && responseSaldo.body()?.ok == true) {
+
+                            val nuevoSaldo = responseSaldo.body()?.saldo ?: saldoActual
+
+                            saldoActual = nuevoSaldo
+
+                            prefs.edit()
+                                .putFloat("saldo", nuevoSaldo.toFloat())
+                                .apply()
                         }
                     }
                 } else {

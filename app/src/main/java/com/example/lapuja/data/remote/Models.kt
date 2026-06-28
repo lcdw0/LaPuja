@@ -143,3 +143,18 @@ data class RecargaRequest(
     val metodoPagoId: Long,
     val monto: Double
 )
+
+data class SaldoRetenidoResponse(
+    val ok: Boolean,
+    val saldoDisponible: Double?,
+    val totalRetenido: Double?,
+    val items: List<SaldoRetenidoItemResponse>?
+)
+
+data class SaldoRetenidoItemResponse(
+    val subastaId: Long?,
+    val nombreSubasta: String?,
+    val monto: Double?,
+    val estado: String?,
+    val fechaFin: String?
+)

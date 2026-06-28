@@ -79,6 +79,8 @@ fun AuctionScreen(
                 }
 
                 if (usuarioId != 0L) {
+
+                    // Favoritos
                     val responseFavoritos = RetrofitClient.api.listarFavoritos(usuarioId)
 
                     if (responseFavoritos.isSuccessful) {
@@ -90,7 +92,22 @@ fun AuctionScreen(
                             .filter { it.subastaId != null && it.id != null }
                             .associate { it.subastaId!! to it.id!! }
                     }
+
+                    // Saldo
+                    val responseSaldo = RetrofitClient.api.obtenerSaldo(usuarioId)
+
+                    if (responseSaldo.isSuccessful && responseSaldo.body()?.ok == true) {
+
+                        val nuevoSaldo = responseSaldo.body()?.saldo ?: saldo
+
+                        saldo = nuevoSaldo
+
+                        prefs.edit()
+                            .putFloat("saldo", nuevoSaldo.toFloat())
+                            .apply()
+                    }
                 }
+
             } catch (e: Exception) {
                 mensaje = "No se pudo conectar con la API."
             }

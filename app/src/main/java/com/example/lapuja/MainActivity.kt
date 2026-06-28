@@ -210,6 +210,10 @@ fun MainScreen(prefs: SharedPreferences) {
             composable("wallet_history") {
                 WalletHistoryScreen()
             }
+
+            composable("held_funds") {
+                HeldFundsScreen()
+            }
         }
     }
 }

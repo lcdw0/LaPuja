@@ -32,9 +32,10 @@ fun ProfileScreen(
 
     val nombre by remember { mutableStateOf(prefs.getString("nombre", "Usuario LaPuja") ?: "Usuario LaPuja") }
     val correo by remember { mutableStateOf(prefs.getString("correo", "Sin correo") ?: "Sin correo") }
-    val saldo by remember { mutableStateOf(prefs.getFloat("saldo", 10000f)) }
-    val fotoPerfil by remember { mutableStateOf(prefs.getString("fotoPerfil", null)) }
+    var saldo by remember { mutableStateOf(prefs.getFloat("saldo", 10000f)) }
+    var saldoRetenido by remember { mutableStateOf(0.0) }
 
+    val fotoPerfil by remember { mutableStateOf(prefs.getString("fotoPerfil", null)) }
     val telefono by remember { mutableStateOf(prefs.getString("telefono", "") ?: "") }
     val ciudad by remember { mutableStateOf(prefs.getString("ciudad", "") ?: "") }
     val biografia by remember { mutableStateOf(prefs.getString("biografia", "") ?: "") }
@@ -48,6 +49,20 @@ fun ProfileScreen(
         scope.launch {
             try {
                 if (usuarioId != 0L) {
+                    RetrofitClient.api.obtenerSaldo(usuarioId).let {
+                        if (it.isSuccessful && it.body()?.ok == true) {
+                            val nuevoSaldo = it.body()?.saldo ?: saldo.toDouble()
+                            saldo = nuevoSaldo.toFloat()
+                            prefs.edit().putFloat("saldo", nuevoSaldo.toFloat()).apply()
+                        }
+                    }
+
+                    RetrofitClient.api.obtenerSaldoRetenido(usuarioId).let {
+                        if (it.isSuccessful && it.body()?.ok == true) {
+                            saldoRetenido = it.body()?.totalRetenido ?: 0.0
+                        }
+                    }
+
                     val subastasUsuario = RetrofitClient.api.listarSubastasPorUsuario(usuarioId)
                     if (subastasUsuario.isSuccessful) {
                         totalSubastas = subastasUsuario.body()?.size ?: 0
@@ -148,8 +163,10 @@ fun ProfileScreen(
 
         WalletCard(
             saldo = saldo,
+            saldoRetenido = saldoRetenido,
             onAddBalance = { navController.navigate("recharge_wallet") },
-            onHistory = { navController.navigate("wallet_history") }
+            onHistory = { navController.navigate("wallet_history") },
+            onHeldFunds = { navController.navigate("held_funds") }
         )
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -207,16 +224,7 @@ fun ProfileScreen(
 
         Button(
             onClick = {
-                prefs.edit()
-                    .remove("usuarioId")
-                    .remove("correo")
-                    .remove("nombre")
-                    .remove("fotoPerfil")
-                    .remove("telefono")
-                    .remove("ciudad")
-                    .remove("biografia")
-                    .remove("fechaRegistro")
-                    .apply()
+                prefs.edit().clear().apply()
 
                 navController.navigate("login") {
                     popUpTo(0)
@@ -232,6 +240,82 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(20.dp))
+    }
+}
+
+@Composable
+fun WalletCard(
+    saldo: Float,
+    saldoRetenido: Double,
+    onAddBalance: () -> Unit,
+    onHistory: () -> Unit,
+    onHeldFunds: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White.copy(alpha = 0.13f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(22.dp)) {
+            Text("💳 Wallet LaPuja", color = Color.White, fontSize = 20.sp)
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text("Saldo disponible", color = Color.LightGray, fontSize = 16.sp)
+
+            Text(
+                text = "$${String.format("%.2f", saldo)}",
+                color = Color.White,
+                fontSize = 40.sp
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text("Saldo retenido", color = Color.LightGray, fontSize = 15.sp)
+
+            Text(
+                text = "$${String.format("%.2f", saldoRetenido)}",
+                color = Color(0xFFFFD166),
+                fontSize = 26.sp
+            )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onAddBalance,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text("+ Agregar")
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                OutlinedButton(
+                    onClick = onHistory,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text("Historial")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = onHeldFunds,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+            ) {
+                Text("Ver saldo retenido")
+            }
+        }
     }
 }
 
