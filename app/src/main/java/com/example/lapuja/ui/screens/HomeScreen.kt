@@ -1,6 +1,5 @@
 package com.example.lapuja.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -8,20 +7,63 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.lapuja.R
+import com.example.lapuja.data.remote.RetrofitClient
+import com.example.lapuja.data.remote.SubastaResponse
+import com.example.lapuja.ui.components.AppImage
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(navController: NavController) {
+    val scope = rememberCoroutineScope()
+    val subastas = remember { mutableStateListOf<SubastaResponse>() }
+
+    var cargando by remember { mutableStateOf(true) }
+    var mensaje by remember { mutableStateOf("") }
+
+    fun cargarSubastas() {
+        scope.launch {
+            try {
+                cargando = true
+                mensaje = ""
+
+                val response = RetrofitClient.api.listarSubastas()
+
+                if (response.isSuccessful) {
+                    subastas.clear()
+                    subastas.addAll(response.body() ?: emptyList())
+                } else {
+                    mensaje = "No se pudieron cargar las subastas."
+                }
+            } catch (e: Exception) {
+                mensaje = "No se pudo conectar con la API."
+            } finally {
+                cargando = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        cargarSubastas()
+    }
+
+    val subastasActivas = subastas
+        .filter { it.estado == "ACTIVA" }
+        .sortedByDescending { it.ofertas }
+        .take(5)
+
+    val categorias = subastas
+        .map { it.categoria }
+        .distinct()
+        .take(5)
 
     Column(
         modifier = Modifier
@@ -87,13 +129,26 @@ fun HomeScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            CategoryCard("🎮\nGaming")
-            CategoryCard("📱\nTecnología")
-            CategoryCard("⌚\nGadgets")
+        if (categorias.isEmpty()) {
+            Text(
+                text = "Todavía no hay categorías disponibles.",
+                color = Color.Gray
+            )
+        } else {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState())
+            ) {
+                categorias.forEach { categoria ->
+                    CategoryCard(
+                        texto = "${emojiCategoria(categoria)}\n$categoria",
+                        onClick = {
+                            navController.navigate("auction")
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.width(10.dp))
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -119,47 +174,59 @@ fun HomeScreen(navController: NavController) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState())
-        ) {
-            FeaturedAuctionCard(
-                title = "iPhone 13 Pro",
-                price = "$5.0",
-                time = "30s",
-                image = R.drawable.iphone,
-                onClick = {
-                    navController.navigate("auction")
-                }
-            )
+        when {
+            cargando -> {
+                Text(
+                    text = "Cargando subastas...",
+                    color = Color.Gray
+                )
+            }
 
-            FeaturedAuctionCard(
-                title = "Laptop Gamer",
-                price = "$10.0",
-                time = "Programada",
-                image = R.drawable.laptop,
-                onClick = {
-                    navController.navigate("auction")
-                }
-            )
+            mensaje.isNotEmpty() -> {
+                Text(
+                    text = mensaje,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
 
-            FeaturedAuctionCard(
-                title = "Audífonos Pro",
-                price = "$3.0",
-                time = "45s",
-                image = R.drawable.audifonos,
-                onClick = {
-                    navController.navigate("auction")
+            subastasActivas.isEmpty() -> {
+                Text(
+                    text = "Todavía no hay subastas activas.",
+                    color = Color.Gray
+                )
+            }
+
+            else -> {
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState())
+                ) {
+                    subastasActivas.forEach { subasta ->
+                        FeaturedAuctionCard(
+                            title = subasta.nombre,
+                            price = "$${subasta.precioActual}",
+                            time = calcularTiempoRestanteHome(subasta.fechaFin),
+                            imageUrl = subasta.imagen,
+                            onClick = {
+                                navController.navigate("auction_detail/${subasta.id}")
+                            }
+                        )
+                    }
                 }
-            )
+            }
         }
     }
 }
 
 @Composable
-fun CategoryCard(texto: String) {
+fun CategoryCard(
+    texto: String,
+    onClick: () -> Unit
+) {
     Card(
         shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.size(100.dp)
+        modifier = Modifier
+            .size(115.dp)
+            .clickable { onClick() }
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -167,7 +234,7 @@ fun CategoryCard(texto: String) {
         ) {
             Text(
                 text = texto,
-                fontSize = 18.sp
+                fontSize = 17.sp
             )
         }
     }
@@ -178,7 +245,7 @@ fun FeaturedAuctionCard(
     title: String,
     price: String,
     time: String,
-    image: Int,
+    imageUrl: String?,
     onClick: () -> Unit
 ) {
     Card(
@@ -191,13 +258,12 @@ fun FeaturedAuctionCard(
             }
     ) {
         Column {
-            Image(
-                painter = painterResource(id = image),
+            AppImage(
+                imageUrl = imageUrl,
                 contentDescription = title,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(125.dp),
-                contentScale = ContentScale.Crop
+                    .height(125.dp)
             )
 
             Column(
@@ -221,5 +287,48 @@ fun FeaturedAuctionCard(
                 )
             }
         }
+    }
+}
+
+private fun emojiCategoria(categoria: String): String {
+    return when (categoria.lowercase()) {
+        "tecnología" -> "📱"
+        "computadoras" -> "💻"
+        "celulares" -> "📱"
+        "videojuegos" -> "🎮"
+        "electrodomésticos" -> "🔌"
+        "vehículos" -> "🚗"
+        "ropa" -> "👕"
+        "hogar" -> "🏠"
+        "coleccionables" -> "🧸"
+        else -> "📦"
+    }
+}
+
+private fun calcularTiempoRestanteHome(fechaFin: String?): String {
+    if (fechaFin.isNullOrBlank()) return "No disponible"
+
+    return try {
+        val fechaLimpia = fechaFin.substringBefore(".")
+        val formato = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+        val fin = formato.parse(fechaLimpia)?.time ?: return "No disponible"
+
+        val diferencia = fin - System.currentTimeMillis()
+
+        if (diferencia <= 0) {
+            "Finalizada"
+        } else {
+            val dias = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diferencia)
+            val horas = java.util.concurrent.TimeUnit.MILLISECONDS.toHours(diferencia) % 24
+            val minutos = java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(diferencia) % 60
+
+            when {
+                dias > 0 -> "${dias}d ${horas}h"
+                horas > 0 -> "${horas}h ${minutos}m"
+                else -> "${minutos}m"
+            }
+        }
+    } catch (e: Exception) {
+        "No disponible"
     }
 }

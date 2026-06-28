@@ -11,12 +11,20 @@ data class LoginRequest(
     val password: String
 )
 
+data class UsuarioUpdateRequest(
+    val nombre: String,
+    val correo: String,
+    val password: String,
+    val fotoPerfil: String?
+)
+
 data class UsuarioResponse(
     val ok: Boolean,
-    val mensaje: String,
+    val mensaje: String? = null,
     val id: Long?,
     val nombre: String?,
-    val correo: String?
+    val correo: String?,
+    val fotoPerfil: String?
 )
 
 data class SubastaRequest(
@@ -52,6 +60,29 @@ data class PujaRequest(
 )
 
 data class PujaResponse(
+    val ok: Boolean? = null,
+    val mensaje: String? = null,
+
+    val id: Long? = null,
+    val usuarioId: Long? = null,
+    val subastaId: Long? = null,
+    val monto: Double? = null,
+    val fecha: String? = null
+)
+
+data class FavoritoRequest(
+    val usuarioId: Long,
+    val subastaId: Long
+)
+
+data class FavoritoResponse(
+    val id: Long?,
+    val usuarioId: Long?,
+    val subastaId: Long?
+)
+
+data class ImagenResponse(
     val ok: Boolean,
-    val mensaje: String
+    val mensaje: String?,
+    val url: String?
 )

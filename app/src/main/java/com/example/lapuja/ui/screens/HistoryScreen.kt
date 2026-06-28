@@ -1,5 +1,7 @@
 package com.example.lapuja.ui.screens
 
+import android.content.Context
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,17 +10,83 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.lapuja.data.Bid
+import com.example.lapuja.data.remote.PujaResponse
+import com.example.lapuja.data.remote.RetrofitClient
+import com.example.lapuja.data.remote.SubastaResponse
+import kotlinx.coroutines.launch
 
 @Composable
 fun HistoryScreen(
-    historial: MutableList<Bid>
+    historial: MutableList<Bid>,
+    navController: NavController
 ) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("app", Context.MODE_PRIVATE)
+    val usuarioId = prefs.getLong("usuarioId", 0L)
+    val scope = rememberCoroutineScope()
+
+    var misPujas by remember { mutableStateOf<List<PujaResponse>>(emptyList()) }
+    var subastasMap by remember { mutableStateOf<Map<Long, SubastaResponse>>(emptyMap()) }
+    var cargando by remember { mutableStateOf(true) }
+    var mensaje by remember { mutableStateOf("") }
+
+    fun cargarHistorial() {
+        scope.launch {
+            try {
+                cargando = true
+                mensaje = ""
+
+                if (usuarioId == 0L) {
+                    mensaje = "Debes iniciar sesión para ver tu historial."
+                    return@launch
+                }
+
+                val response = RetrofitClient.api.listarPujasPorUsuario(usuarioId)
+
+                if (response.isSuccessful) {
+                    val pujas = response.body() ?: emptyList()
+                    misPujas = pujas
+
+                    val mapaTemporal = mutableMapOf<Long, SubastaResponse>()
+
+                    pujas.mapNotNull { it.subastaId }
+                        .distinct()
+                        .forEach { subastaId ->
+                            val subastaResponse = RetrofitClient.api.obtenerSubasta(subastaId)
+
+                            if (subastaResponse.isSuccessful) {
+                                val subasta = subastaResponse.body()
+                                if (subasta != null) {
+                                    mapaTemporal[subastaId] = subasta
+                                }
+                            }
+                        }
+
+                    subastasMap = mapaTemporal
+                } else {
+                    mensaje = "No se pudo cargar tu historial."
+                }
+            } catch (e: Exception) {
+                mensaje = "No se pudo conectar con la API."
+            } finally {
+                cargando = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        cargarHistorial()
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -41,7 +109,37 @@ fun HistoryScreen(
             Spacer(modifier = Modifier.height(20.dp))
         }
 
-        if (historial.isEmpty()) {
+        if (cargando) {
+            item {
+                Text(
+                    text = "Cargando historial...",
+                    color = Color.Gray
+                )
+            }
+        }
+
+        if (mensaje.isNotEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp)
+                    ) {
+                        Text(
+                            text = mensaje,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!cargando && mensaje.isEmpty() && misPujas.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -68,34 +166,86 @@ fun HistoryScreen(
                     }
                 }
             }
-        } else {
-            items(historial.reversed()) { bid ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp),
-                    shape = RoundedCornerShape(18.dp)
+        }
+
+        items(misPujas.reversed()) { puja ->
+            val subasta = puja.subastaId?.let { subastasMap[it] }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
+                    .clickable {
+                        puja.subastaId?.let { id ->
+                            navController.navigate("auction_detail/$id")
+                        }
+                    },
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(14.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(82.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    ) {
+                        ImagenSubastaLista(
+                            imagen = subasta?.imagen,
+                            nombre = subasta?.nombre ?: "Subasta"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = bid.producto,
-                            fontSize = 22.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "Monto ofertado: $${bid.precio}",
-                            fontSize = 17.sp
+                            text = subasta?.nombre ?: "Subasta #${puja.subastaId ?: "N/D"}",
+                            fontSize = 20.sp
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
-                            text = "Estado: ${if (bid.ganador == "Tú") "Ganando actualmente" else "Participaste"}",
-                            fontSize = 15.sp,
+                            text = "Categoría: ${subasta?.categoria ?: "No disponible"}",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "Monto ofertado: $${puja.monto ?: 0.0}",
+                            fontSize = 16.sp
+                        )
+
+                        Text(
+                            text = "Precio actual: $${subasta?.precioActual ?: 0.0}",
+                            fontSize = 14.sp
+                        )
+
+                        Text(
+                            text = "Ganador: ${subasta?.ganador ?: "No disponible"}",
+                            fontSize = 14.sp
+                        )
+
+                        Text(
+                            text = "Estado: ${subasta?.estado ?: "No disponible"}",
+                            fontSize = 14.sp,
+                            color = when (subasta?.estado) {
+                                "ACTIVA" -> Color(0xFF4CAF50)
+                                "FINALIZADA" -> Color(0xFFFF6B81)
+                                else -> Color.Gray
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = "Fecha: ${formatearFecha(puja.fecha)}",
+                            fontSize = 13.sp,
                             color = Color.Gray
                         )
                     }

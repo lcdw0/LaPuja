@@ -1,28 +1,130 @@
 package com.example.lapuja.ui.screens
 
+import android.content.Context
+import android.net.Uri
+import android.view.ViewGroup
+import android.widget.ImageView
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.lapuja.R
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.lapuja.data.AuctionItem
+import com.example.lapuja.data.remote.RetrofitClient
+import com.example.lapuja.data.remote.SubastaRequest
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateAuctionScreen(
     productos: MutableList<AuctionItem>,
     onAuctionCreated: () -> Unit
 ) {
+    val context = LocalContext.current
+    val prefs = context.getSharedPreferences("app", Context.MODE_PRIVATE)
+    val usuarioId = prefs.getLong("usuarioId", 0L)
+    val scope = rememberCoroutineScope()
+
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("") }
-    var fechaInicio by remember { mutableStateOf("Hoy") }
     var error by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
+
+    var categoriaExpandida by remember { mutableStateOf(false) }
+    var mostrarFecha by remember { mutableStateOf(false) }
+    var mostrarHora by remember { mutableStateOf(false) }
+
+    var fechaMillis by remember { mutableStateOf<Long?>(null) }
+    var horaSeleccionada by remember { mutableStateOf<Int?>(null) }
+    var minutoSeleccionado by remember { mutableStateOf<Int?>(null) }
+    var imagenUri by remember { mutableStateOf<Uri?>(null) }
+
+    val categorias = listOf(
+        "Tecnología",
+        "Computadoras",
+        "Celulares",
+        "Videojuegos",
+        "Electrodomésticos",
+        "Vehículos",
+        "Ropa",
+        "Hogar",
+        "Coleccionables",
+        "Otros"
+    )
+
+    val launcherImagen = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            imagenUri = uri
+        }
+    }
+
+    val datePickerState = rememberDatePickerState()
+    val timePickerState = rememberTimePickerState(
+        initialHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
+        initialMinute = Calendar.getInstance().get(Calendar.MINUTE),
+        is24Hour = false
+    )
+
+    fun fechaTexto(): String {
+        val millis = fechaMillis ?: return ""
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = millis
+        horaSeleccionada?.let { cal.set(Calendar.HOUR_OF_DAY, it) }
+        minutoSeleccionado?.let { cal.set(Calendar.MINUTE, it) }
+
+        return SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault())
+            .format(cal.time)
+    }
+
+    fun fechaApi(): String {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = fechaMillis ?: 0L
+        cal.set(Calendar.HOUR_OF_DAY, horaSeleccionada ?: 23)
+        cal.set(Calendar.MINUTE, minutoSeleccionado ?: 59)
+        cal.set(Calendar.SECOND, 0)
+
+        return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            .format(cal.time)
+    }
+
+    fun crearParteImagen(context: Context, uri: Uri): MultipartBody.Part? {
+        return try {
+            val bytes = context.contentResolver.openInputStream(uri)?.use {
+                it.readBytes()
+            } ?: return null
+
+            val requestBody = bytes.toRequestBody("image/*".toMediaTypeOrNull())
+
+            MultipartBody.Part.createFormData(
+                name = "file",
+                filename = "subasta_${System.currentTimeMillis()}.jpg",
+                body = requestBody
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -30,16 +132,16 @@ fun CreateAuctionScreen(
             .padding(20.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(
-            text = "Crear subasta",
-            fontSize = 30.sp
-        )
+        Text(text = "Crear subasta", fontSize = 30.sp)
 
         Spacer(modifier = Modifier.height(20.dp))
 
         OutlinedTextField(
             value = nombre,
-            onValueChange = { nombre = it },
+            onValueChange = {
+                nombre = it
+                error = ""
+            },
             label = { Text("Nombre del producto") },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
@@ -49,7 +151,10 @@ fun CreateAuctionScreen(
 
         OutlinedTextField(
             value = descripcion,
-            onValueChange = { descripcion = it },
+            onValueChange = {
+                descripcion = it
+                error = ""
+            },
             label = { Text("Descripción") },
             modifier = Modifier.fillMaxWidth(),
             minLines = 4,
@@ -60,31 +165,123 @@ fun CreateAuctionScreen(
 
         OutlinedTextField(
             value = precio,
-            onValueChange = { precio = it },
+            onValueChange = {
+                precio = it
+                error = ""
+            },
             label = { Text("Precio inicial") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = categoria,
-            onValueChange = { categoria = it },
-            label = { Text("Categoría") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp)
-        )
+        ExposedDropdownMenuBox(
+            expanded = categoriaExpandida,
+            onExpandedChange = { categoriaExpandida = !categoriaExpandida }
+        ) {
+            OutlinedTextField(
+                value = categoria,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Categoría") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoriaExpandida)
+                },
+                modifier = Modifier
+                    .menuAnchor(
+                        type = MenuAnchorType.PrimaryNotEditable,
+                        enabled = true
+                    )
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            )
+
+            ExposedDropdownMenu(
+                expanded = categoriaExpandida,
+                onDismissRequest = { categoriaExpandida = false }
+            ) {
+                categorias.forEach { opcion ->
+                    DropdownMenuItem(
+                        text = { Text(opcion) },
+                        onClick = {
+                            categoria = opcion
+                            categoriaExpandida = false
+                            error = ""
+                        }
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
-            value = fechaInicio,
-            onValueChange = { fechaInicio = it },
-            label = { Text("Fecha de inicio") },
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = fechaTexto(),
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                label = { Text("Fecha y hora de finalización") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp)
+            )
+
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable {
+                        mostrarFecha = true
+                    }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedButton(
+            onClick = {
+                launcherImagen.launch(arrayOf("image/*"))
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
-        )
+        ) {
+            Text(
+                if (imagenUri == null)
+                    "Seleccionar foto del producto"
+                else
+                    "Cambiar foto del producto"
+            )
+        }
+
+        if (imagenUri != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                AndroidView(
+                    factory = { ctx ->
+                        ImageView(ctx).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            scaleType = ImageView.ScaleType.CENTER_CROP
+                        }
+                    },
+                    update = { imageView ->
+                        imageView.setImageURI(imagenUri)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
 
         if (error.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
@@ -100,44 +297,184 @@ fun CreateAuctionScreen(
             onClick = {
                 val precioConvertido = precio.toDoubleOrNull()
 
-                if (nombre.isBlank() || descripcion.isBlank() || precio.isBlank() || categoria.isBlank()) {
-                    error = "Completa todos los campos."
+                when {
+                    nombre.isBlank() -> {
+                        error = "Ingrese el nombre del producto."
+                        return@Button
+                    }
+
+                    descripcion.isBlank() -> {
+                        error = "Ingrese una descripción del producto."
+                        return@Button
+                    }
+
+                    precio.isBlank() -> {
+                        error = "Ingrese el precio inicial."
+                        return@Button
+                    }
+
+                    precioConvertido == null || precioConvertido <= 0 -> {
+                        error = "Ingrese un precio válido mayor que cero."
+                        return@Button
+                    }
+
+                    categoria.isBlank() -> {
+                        error = "Seleccione una categoría."
+                        return@Button
+                    }
+
+                    fechaMillis == null -> {
+                        error = "Seleccione la fecha de finalización."
+                        return@Button
+                    }
+
+                    horaSeleccionada == null || minutoSeleccionado == null -> {
+                        error = "Seleccione la hora de finalización."
+                        return@Button
+                    }
+
+                    imagenUri == null -> {
+                        error = "Seleccione una foto del producto."
+                        return@Button
+                    }
+
+                    usuarioId == 0L -> {
+                        error = "Debe iniciar sesión para crear una subasta."
+                        return@Button
+                    }
+                }
+
+                val fechaElegida = Calendar.getInstance()
+                fechaElegida.timeInMillis = fechaMillis!!
+                fechaElegida.set(Calendar.HOUR_OF_DAY, horaSeleccionada!!)
+                fechaElegida.set(Calendar.MINUTE, minutoSeleccionado!!)
+                fechaElegida.set(Calendar.SECOND, 0)
+
+                if (fechaElegida.timeInMillis <= System.currentTimeMillis()) {
+                    error = "La fecha de finalización debe ser posterior a la fecha actual."
                     return@Button
                 }
 
-                if (precioConvertido == null || precioConvertido <= 0) {
-                    error = "Ingresa un precio válido."
-                    return@Button
-                }
-
-                val nuevaSubasta = AuctionItem(
-                    nombre = nombre,
-                    descripcion = descripcion,
-                    precioInicial = precioConvertido,
-                    imagen = R.drawable.iphone,
-                    categoria = categoria,
-                    fechaInicio = fechaInicio
-                ).apply {
-                    estado = "ACTIVA"
-                    iniciada = true
-                    tiempo = 60
-                }
-
-                productos.add(nuevaSubasta)
-
-                nombre = ""
-                descripcion = ""
-                precio = ""
-                categoria = ""
-                fechaInicio = "Hoy"
+                cargando = true
                 error = ""
 
-                onAuctionCreated()
+                scope.launch {
+                    try {
+                        val parteImagen = crearParteImagen(context, imagenUri!!)
+
+                        if (parteImagen == null) {
+                            error = "No se pudo preparar la imagen."
+                            cargando = false
+                            return@launch
+                        }
+
+                        val responseImagen = RetrofitClient.api.subirImagenSubasta(parteImagen)
+
+                        if (!responseImagen.isSuccessful || responseImagen.body()?.ok != true) {
+                            error = responseImagen.body()?.mensaje ?: "No se pudo subir la imagen."
+                            cargando = false
+                            return@launch
+                        }
+
+                        val urlImagen = responseImagen.body()?.url
+
+                        if (urlImagen.isNullOrBlank()) {
+                            error = "La API no devolvió la URL de la imagen."
+                            cargando = false
+                            return@launch
+                        }
+
+                        val response = RetrofitClient.api.crearSubasta(
+                            SubastaRequest(
+                                nombre = nombre,
+                                descripcion = descripcion,
+                                precioInicial = precioConvertido!!,
+                                categoria = categoria,
+                                imagen = urlImagen,
+                                usuarioId = usuarioId,
+                                fechaFin = fechaApi()
+                            )
+                        )
+
+                        if (response.isSuccessful) {
+                            nombre = ""
+                            descripcion = ""
+                            precio = ""
+                            categoria = ""
+                            fechaMillis = null
+                            horaSeleccionada = null
+                            minutoSeleccionado = null
+                            imagenUri = null
+                            error = ""
+
+                            onAuctionCreated()
+                        } else {
+                            error = "No se pudo crear la subasta. Revise los datos ingresados."
+                        }
+                    } catch (e: Exception) {
+                        error = "No se pudo conectar con la API."
+                    } finally {
+                        cargando = false
+                    }
+                }
             },
+            enabled = !cargando,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("Publicar subasta")
+            Text(if (cargando) "Publicando..." else "Publicar subasta")
         }
+    }
+
+    if (mostrarFecha) {
+        DatePickerDialog(
+            onDismissRequest = { mostrarFecha = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        fechaMillis = datePickerState.selectedDateMillis
+                        mostrarFecha = false
+                        mostrarHora = true
+                    }
+                ) {
+                    Text("Siguiente")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarFecha = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (mostrarHora) {
+        AlertDialog(
+            onDismissRequest = { mostrarHora = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        horaSeleccionada = timePickerState.hour
+                        minutoSeleccionado = timePickerState.minute
+                        mostrarHora = false
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarHora = false }) {
+                    Text("Cancelar")
+                }
+            },
+            title = {
+                Text("Seleccione la hora")
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
     }
 }

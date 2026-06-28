@@ -11,22 +11,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.ui.draw.clip
+import com.example.lapuja.ui.components.AppProfileImage
 
 @Composable
 fun ProfileScreen(
     prefs: SharedPreferences,
     navController: NavController
 ) {
+
     var nombre by remember {
-        mutableStateOf(prefs.getString("nombre", "Usuario LaPuja") ?: "Usuario LaPuja")
+        mutableStateOf(
+            prefs.getString("nombre", "Usuario LaPuja") ?: "Usuario LaPuja"
+        )
     }
 
     var correo by remember {
-        mutableStateOf(prefs.getString("correo", "Sin correo") ?: "Sin correo")
+        mutableStateOf(
+            prefs.getString("correo", "Sin correo") ?: "Sin correo"
+        )
     }
 
     var saldo by remember {
-        mutableStateOf(prefs.getFloat("saldo", 10000f))
+        mutableStateOf(
+            prefs.getFloat("saldo", 10000f)
+        )
+    }
+
+    var fotoPerfil by remember {
+        mutableStateOf(
+            prefs.getString("fotoPerfil", null)
+        )
     }
 
     Column(
@@ -35,6 +50,7 @@ fun ProfileScreen(
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+
         Text(
             text = "Mi perfil",
             fontSize = 30.sp
@@ -42,24 +58,21 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Surface(
-            modifier = Modifier.size(100.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer
-        ) {
-            Box(
-                contentAlignment = Alignment.Center
-            ) {
-                Text("👤", fontSize = 42.sp)
-            }
-        }
+        AppProfileImage(
+            imageUrl = fotoPerfil,
+            modifier = Modifier
+                .size(110.dp)
+                .clip(CircleShape)
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         Text(
             text = nombre,
             fontSize = 24.sp
         )
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = correo,
@@ -75,6 +88,7 @@ fun ProfileScreen(
             Column(
                 modifier = Modifier.padding(18.dp)
             ) {
+
                 Text(
                     text = "Saldo disponible",
                     fontSize = 16.sp
@@ -137,26 +151,28 @@ fun ProfileScreen(
             Text("Métodos de pago")
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.weight(1f))
 
         Button(
             onClick = {
+
                 prefs.edit()
+                    .remove("usuarioId")
                     .remove("correo")
                     .remove("nombre")
+                    .remove("fotoPerfil")
                     .apply()
 
                 navController.navigate("login") {
-                    popUpTo("home") {
-                        inclusive = true
-                    }
+                    popUpTo(0)
                 }
+
             },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.error
-            )
+            ),
+            shape = RoundedCornerShape(14.dp)
         ) {
             Text("Cerrar sesión")
         }

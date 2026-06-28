@@ -32,4 +32,6 @@ class AuctionItem(
     var estado by mutableStateOf("ACTIVA")
 
     var iniciada by mutableStateOf(true)
+
+    var idApi: Long = 0L
 }

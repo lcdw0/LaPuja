@@ -8,31 +8,19 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.lapuja.components.BottomNav
 import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.Bid
-import com.example.lapuja.ui.screens.AuctionDetailScreen
-import com.example.lapuja.ui.screens.AuctionScreen
-import com.example.lapuja.ui.screens.CreateAuctionScreen
-import com.example.lapuja.ui.screens.EditProfileScreen
-import com.example.lapuja.ui.screens.HistoryScreen
-import com.example.lapuja.ui.screens.HomeScreen
-import com.example.lapuja.ui.screens.LoginScreen
-import com.example.lapuja.ui.screens.MyAuctionsScreen
-import com.example.lapuja.ui.screens.MyBidsScreen
-import com.example.lapuja.ui.screens.PaymentMethodsScreen
-import com.example.lapuja.ui.screens.ProfileScreen
-import com.example.lapuja.ui.screens.RegisterScreen
+import com.example.lapuja.ui.screens.*
 import com.example.lapuja.ui.theme.LaPujaTheme
 
 class MainActivity : ComponentActivity() {
@@ -69,50 +57,7 @@ fun MainScreen(prefs: SharedPreferences) {
     }
 
     val productos = remember {
-        mutableStateListOf(
-            AuctionItem(
-                nombre = "iPhone 13 Pro",
-                descripcion = "iPhone 13 Pro en excelente estado, con batería en buen rendimiento y cargador incluido.",
-                precioInicial = 5.0,
-                imagen = R.drawable.iphone,
-                categoria = "Tecnología",
-                fechaInicio = "Hoy"
-            ).apply {
-                estado = "ACTIVA"
-                iniciada = true
-                tiempo = 30
-            },
-
-            AuctionItem(
-                nombre = "Laptop Gamer",
-                descripcion = "Laptop gamer ideal para juegos y trabajos pesados. Incluye cargador original.",
-                precioInicial = 10.0,
-                imagen = R.drawable.laptop,
-                categoria = "Computadoras",
-                fechaInicio = "En 2 horas"
-            ).apply {
-                estado = "PROGRAMADA"
-                iniciada = false
-                tiempo = 60
-            },
-
-            AuctionItem(
-                nombre = "Audífonos Pro",
-                descripcion = "Audífonos inalámbricos con cancelación de ruido y estuche de carga.",
-                precioInicial = 3.0,
-                imagen = R.drawable.audifonos,
-                categoria = "Accesorios",
-                fechaInicio = "Hoy"
-            ).apply {
-                estado = "ACTIVA"
-                iniciada = true
-                tiempo = 45
-            }
-        )
-    }
-
-    var selectedAuction by remember {
-        mutableStateOf<AuctionItem?>(null)
+        mutableStateListOf<AuctionItem>()
     }
 
     val usuarioGuardado = prefs.getString("correo", null)
@@ -134,7 +79,7 @@ fun MainScreen(prefs: SharedPreferences) {
             if (
                 currentRoute != "login" &&
                 currentRoute != "register" &&
-                currentRoute != "auction_detail"
+                currentRoute?.startsWith("auction_detail") != true
             ) {
                 BottomNav(navController = navController)
             }
@@ -172,8 +117,7 @@ fun MainScreen(prefs: SharedPreferences) {
                     historial = historial,
                     productos = productos,
                     onAuctionClick = { auction ->
-                        selectedAuction = auction
-                        navController.navigate("auction_detail")
+                        navController.navigate("auction_detail/${auction.idApi}")
                     }
                 )
             }
@@ -182,27 +126,40 @@ fun MainScreen(prefs: SharedPreferences) {
                 CreateAuctionScreen(
                     productos = productos,
                     onAuctionCreated = {
-                        navController.navigate("auction")
+                        navController.navigate("auction") {
+                            popUpTo("create_auction") {
+                                inclusive = true
+                            }
+                        }
                     }
                 )
             }
 
-            composable("auction_detail") {
-                selectedAuction?.let { auction ->
-                    AuctionDetailScreen(
-                        auction = auction,
-                        prefs = prefs,
-                        historial = historial,
-                        onBackClick = {
-                            navController.popBackStack()
-                        }
-                    )
-                }
+            composable(
+                route = "auction_detail/{subastaId}",
+                arguments = listOf(
+                    navArgument("subastaId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val subastaId = backStackEntry.arguments?.getLong("subastaId") ?: 0L
+
+                AuctionDetailScreen(
+                    subastaId = subastaId,
+                    prefs = prefs,
+                    historial = historial,
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("history") {
                 HistoryScreen(
-                    historial = historial
+                    historial = historial,
+                    navController = navController
                 )
             }
 
@@ -228,7 +185,8 @@ fun MainScreen(prefs: SharedPreferences) {
 
             composable("my_bids") {
                 MyBidsScreen(
-                    historial = historial
+                    historial = historial,
+                    navController = navController
                 )
             }
 
