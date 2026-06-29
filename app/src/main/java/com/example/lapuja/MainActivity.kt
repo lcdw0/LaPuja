@@ -22,6 +22,7 @@ import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.Bid
 import com.example.lapuja.ui.screens.*
 import com.example.lapuja.ui.theme.LaPujaTheme
+import com.example.lapuja.ui.dashboard.DashboardScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -237,6 +238,23 @@ fun MainScreen(prefs: SharedPreferences) {
                             }
                         }
                     }
+                )
+            }
+
+            fun obtenerUsuarioIdDesdePrefs(prefs: SharedPreferences): Long {
+                return when (val id = prefs.all["usuarioId"]) {
+                    is Long -> id
+                    is Int -> id.toLong()
+                    is String -> id.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
+            }
+
+            composable("dashboard") {
+                val usuarioId = obtenerUsuarioIdDesdePrefs(prefs)
+
+                DashboardScreen(
+                    usuarioId = usuarioId
                 )
             }
         }

@@ -3,6 +3,9 @@ package com.example.lapuja.data.remote
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
+import com.example.lapuja.data.model.dashboard.DashboardResumenResponse
+import com.example.lapuja.data.model.dashboard.DashboardGraficasResponse
+import com.example.lapuja.data.model.dashboard.DashboardActividadResponse
 
 interface ApiService {
 
@@ -171,4 +174,19 @@ interface ApiService {
     suspend fun obtenerSaldoRetenido(
         @Path("usuarioId") usuarioId: Long
     ): Response<SaldoRetenidoResponse>
+
+    @GET("api/dashboard/resumen/{usuarioId}")
+    suspend fun obtenerDashboardResumen(
+        @Path("usuarioId") usuarioId: Long
+    ): DashboardResumenResponse
+
+    @GET("api/dashboard/graficas/{usuarioId}")
+    suspend fun obtenerDashboardGraficas(
+        @Path("usuarioId") usuarioId: Long
+    ): DashboardGraficasResponse
+
+    @GET("api/dashboard/actividad/{usuarioId}")
+    suspend fun obtenerDashboardActividad(
+        @Path("usuarioId") usuarioId: Long
+    ): List<DashboardActividadResponse>
 }
