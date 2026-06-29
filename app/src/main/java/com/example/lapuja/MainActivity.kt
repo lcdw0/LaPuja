@@ -24,6 +24,12 @@ import com.example.lapuja.ui.screens.*
 import com.example.lapuja.ui.theme.LaPujaTheme
 import com.example.lapuja.ui.dashboard.DashboardScreen
 import com.example.lapuja.ui.screens.PublicProfileScreen
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import com.example.lapuja.components.NotificationBell
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.lapuja.ui.notifications.NotificationViewModel
 
 class MainActivity : ComponentActivity() {
 
@@ -50,9 +56,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(prefs: SharedPreferences) {
     val navController = rememberNavController()
+
+    val notificationViewModel: NotificationViewModel = viewModel()
 
     val historial = remember {
         mutableStateListOf<Bid>()
@@ -71,6 +80,30 @@ fun MainScreen(prefs: SharedPreferences) {
     }
 
     Scaffold(
+        topBar = {
+            val currentRoute = navController
+                .currentBackStackEntryAsState()
+                .value
+                ?.destination
+                ?.route
+
+            if (
+                currentRoute != "login" &&
+                currentRoute != "register" &&
+                currentRoute != "notifications"
+            ) {
+                TopAppBar(
+                    title = { Text("LaPuja") },
+                    actions = {
+                        NotificationBell(
+                            prefs = prefs,
+                            navController = navController,
+                            notificationViewModel = notificationViewModel
+                        )
+                    }
+                )
+            }
+        },
         bottomBar = {
             val currentRoute = navController
                 .currentBackStackEntryAsState()
@@ -274,6 +307,14 @@ fun MainScreen(prefs: SharedPreferences) {
                 PublicProfileScreen(
                     usuarioId = usuarioId,
                     navController = navController
+                )
+            }
+
+            composable("notifications") {
+                NotificationsScreen(
+                    prefs = prefs,
+                    navController = navController,
+                    notificationViewModel = notificationViewModel
                 )
             }
         }

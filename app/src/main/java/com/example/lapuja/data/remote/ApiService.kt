@@ -209,4 +209,29 @@ interface ApiService {
     suspend fun obtenerSubastasVendidasPublicas(
         @Path("id") id: Long
     ): Response<PublicAuctionListResponse>
+
+    @GET("api/notificaciones/usuario/{usuarioId}")
+    suspend fun obtenerNotificaciones(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<NotificacionesListResponse>
+
+    @GET("api/notificaciones/usuario/{usuarioId}/contador")
+    suspend fun obtenerContadorNotificaciones(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<NotificacionesContadorResponse>
+
+    @PUT("api/notificaciones/{id}/leer")
+    suspend fun marcarNotificacionLeida(
+        @Path("id") id: Long
+    ): Response<NotificacionSimpleResponse>
+
+    @PUT("api/notificaciones/usuario/{usuarioId}/leer-todas")
+    suspend fun marcarTodasNotificacionesLeidas(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<NotificacionSimpleResponse>
+
+    @DELETE("api/notificaciones/{id}")
+    suspend fun eliminarNotificacion(
+        @Path("id") id: Long
+    ): Response<NotificacionSimpleResponse>
 }

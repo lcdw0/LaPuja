@@ -11,4 +11,5 @@ object Routes {
     const val AUCTION_DETAIL = "auction_detail"
     const val PUBLIC_PROFILE = "public_profile"
     const val BID = "bid"
+    const val NOTIFICATIONS = "notifications"
 }

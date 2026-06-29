@@ -198,3 +198,31 @@ data class PublicAuctionListResponse(
     val mensaje: String?,
     val subastas: List<SubastaResponse> = emptyList()
 )
+
+data class NotificacionResponse(
+    val id: Long,
+    val usuarioId: Long,
+    val titulo: String,
+    val mensaje: String,
+    val tipo: String,
+    val referenciaId: Long?,
+    val pantallaDestino: String,
+    val leida: Boolean,
+    val fecha: String?
+)
+
+data class NotificacionesListResponse(
+    val ok: Boolean,
+    val mensaje: String?,
+    val notificaciones: List<NotificacionResponse> = emptyList()
+)
+
+data class NotificacionesContadorResponse(
+    val ok: Boolean,
+    val noLeidas: Long
+)
+
+data class NotificacionSimpleResponse(
+    val ok: Boolean,
+    val mensaje: String?
+)
