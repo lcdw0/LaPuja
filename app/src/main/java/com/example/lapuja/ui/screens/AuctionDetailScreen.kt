@@ -360,7 +360,13 @@ fun AuctionDetailScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        auction.usuarioId?.let { vendedorId ->
+                            navController.navigate("public_profile/$vendedorId")
+                        }
+                    },
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Row(
@@ -376,18 +382,26 @@ fun AuctionDetailScreen(
 
                     Spacer(modifier = Modifier.width(14.dp))
 
-                    Column {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Text(
                             text = vendedor?.nombre ?: "Vendedor no disponible",
                             fontSize = 18.sp
                         )
 
                         Text(
-                            text = vendedor?.correo ?: "Correo no disponible",
+                            text = vendedor?.ciudad ?: "Ver perfil del vendedor",
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
                     }
+
+                    Text(
+                        text = "Ver perfil",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
@@ -481,6 +495,20 @@ fun AuctionDetailScreen(
 
                 Text(text = "Subasta terminada", fontSize = 18.sp)
                 Text(text = "Ganador final: ${auction.ganador}", fontSize = 16.sp)
+
+                if (auction.ganadorId == usuarioId) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Button(
+                        onClick = {
+                            mensaje = "El chat con el vendedor se implementará en la siguiente funcionalidad."
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("Contactar vendedor")
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))

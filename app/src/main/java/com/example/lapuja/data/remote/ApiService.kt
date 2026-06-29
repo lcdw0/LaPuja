@@ -189,4 +189,24 @@ interface ApiService {
     suspend fun obtenerDashboardActividad(
         @Path("usuarioId") usuarioId: Long
     ): List<DashboardActividadResponse>
+
+    @GET("api/usuarios/{id}/perfil-publico")
+    suspend fun obtenerPerfilPublico(
+        @Path("id") id: Long
+    ): Response<PerfilPublicoResponse>
+
+    @GET("api/usuarios/{id}/subastas/activas")
+    suspend fun obtenerSubastasActivasPublicas(
+        @Path("id") id: Long
+    ): Response<PublicAuctionListResponse>
+
+    @GET("api/usuarios/{id}/subastas/finalizadas")
+    suspend fun obtenerSubastasFinalizadasPublicas(
+        @Path("id") id: Long
+    ): Response<PublicAuctionListResponse>
+
+    @GET("api/usuarios/{id}/subastas/vendidas")
+    suspend fun obtenerSubastasVendidasPublicas(
+        @Path("id") id: Long
+    ): Response<PublicAuctionListResponse>
 }

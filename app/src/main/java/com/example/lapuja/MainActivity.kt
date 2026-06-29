@@ -23,6 +23,7 @@ import com.example.lapuja.data.Bid
 import com.example.lapuja.ui.screens.*
 import com.example.lapuja.ui.theme.LaPujaTheme
 import com.example.lapuja.ui.dashboard.DashboardScreen
+import com.example.lapuja.ui.screens.PublicProfileScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -80,7 +81,8 @@ fun MainScreen(prefs: SharedPreferences) {
             if (
                 currentRoute != "login" &&
                 currentRoute != "register" &&
-                currentRoute?.startsWith("auction_detail") != true
+                currentRoute?.startsWith("auction_detail") != true &&
+                currentRoute?.startsWith("public_profile") != true
             ) {
                 BottomNav(navController = navController)
             }
@@ -255,6 +257,23 @@ fun MainScreen(prefs: SharedPreferences) {
 
                 DashboardScreen(
                     usuarioId = usuarioId
+                )
+            }
+
+            composable(
+                route = "public_profile/{usuarioId}",
+                arguments = listOf(
+                    navArgument("usuarioId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val usuarioId = backStackEntry.arguments?.getLong("usuarioId") ?: 0L
+
+                PublicProfileScreen(
+                    usuarioId = usuarioId,
+                    navController = navController
                 )
             }
         }

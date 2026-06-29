@@ -174,3 +174,27 @@ data class SaldoRetenidoItemResponse(
 data class CancelarSubastaRequest(
     val usuarioId: Long
 )
+
+data class PerfilPublicoResponse(
+    val ok: Boolean,
+    val mensaje: String?,
+    val id: Long?,
+    val nombre: String?,
+    val fotoPerfil: String?,
+    val ciudad: String?,
+    val biografia: String?,
+    val fechaRegistro: String?,
+    val cantidadVentas: Long?,
+    val cantidadCompras: Long?,
+    val subastasActivas: Long?,
+    val subastasFinalizadas: Long?,
+    val subastasVendidas: Long?,
+    val reputacion: Double?,
+    val promedioEstrellas: Double?
+)
+
+data class PublicAuctionListResponse(
+    val ok: Boolean,
+    val mensaje: String?,
+    val subastas: List<SubastaResponse> = emptyList()
+)
