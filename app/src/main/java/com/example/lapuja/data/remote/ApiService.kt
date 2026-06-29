@@ -35,6 +35,16 @@ interface ApiService {
     @GET("api/subastas/activas")
     suspend fun listarSubastasActivas(): Response<List<SubastaResponse>>
 
+    @GET("api/subastas/buscar")
+    suspend fun buscarSubastas(
+        @Query("texto") texto: String? = null,
+        @Query("categoria") categoria: String? = null,
+        @Query("min") min: Double? = null,
+        @Query("max") max: Double? = null,
+        @Query("estado") estado: String? = "TODAS",
+        @Query("orden") orden: String? = "recientes"
+    ): Response<List<SubastaResponse>>
+
     @POST("api/subastas")
     suspend fun crearSubasta(@Body request: SubastaRequest): Response<SubastaResponse>
 
