@@ -46,6 +46,18 @@ data class SubastaRequest(
     val fechaFin: String
 )
 
+data class SubastaImagenRequest(
+    val url: String
+)
+
+data class SubastaImagenResponse(
+    val id: Long?,
+    val subastaId: Long?,
+    val url: String?,
+    val orden: Int?,
+    val principal: Boolean?
+)
+
 data class SubastaResponse(
     val id: Long,
     val nombre: String,
@@ -60,7 +72,8 @@ data class SubastaResponse(
     val ganadorId: Long?,
     val usuarioId: Long?,
     val fechaCreacion: String?,
-    val fechaFin: String?
+    val fechaFin: String?,
+    val imagenes: List<SubastaImagenResponse>? = emptyList()
 )
 
 data class PujaRequest(
@@ -72,15 +85,14 @@ data class PujaRequest(
 data class PujaResponse(
     val ok: Boolean? = null,
     val mensaje: String? = null,
-
     val id: Long? = null,
     val usuarioId: Long? = null,
     val subastaId: Long? = null,
     val monto: Double? = null,
     val fecha: String? = null,
-
     val saldo: Double? = null
 )
+
 data class FavoritoRequest(
     val usuarioId: Long,
     val subastaId: Long

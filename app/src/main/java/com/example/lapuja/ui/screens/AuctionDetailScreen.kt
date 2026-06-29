@@ -24,6 +24,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.window.Dialog
 
 @Composable
 fun AuctionDetailScreen(
@@ -234,10 +240,21 @@ fun AuctionDetailScreen(
                     .height(270.dp),
                 shape = RoundedCornerShape(24.dp)
             ) {
-                ImagenSubasta(
-                    imagen = auction.imagen,
-                    nombre = auction.nombre
-                )
+
+                if (!auction.imagenes.isNullOrEmpty()) {
+
+                    CarouselImagenes(
+                        imagenes = auction.imagenes
+                    )
+
+                } else {
+
+                    ImagenSubasta(
+                        imagen = auction.imagen,
+                        nombre = auction.nombre
+                    )
+
+                }
             }
 
             Spacer(modifier = Modifier.height(22.dp))
@@ -491,6 +508,118 @@ fun ImagenSubasta(
         contentDescription = nombre,
         modifier = Modifier.fillMaxSize()
     )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun CarouselImagenes(
+    imagenes: List<SubastaImagenResponse>
+) {
+    var mostrarPantallaCompleta by remember { mutableStateOf(false) }
+    var paginaInicial by remember { mutableStateOf(0) }
+
+    val pagerState = rememberPagerState(
+        pageCount = { imagenes.size }
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            AppImage(
+                imageUrl = imagenes.getOrNull(page)?.url,
+                contentDescription = "",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable {
+                        paginaInicial = page
+                        mostrarPantallaCompleta = true
+                    }
+            )
+        }
+
+        if (imagenes.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                repeat(imagenes.size) { index ->
+                    Text(
+                        text = if (pagerState.currentPage == index) "●" else "○",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    if (mostrarPantallaCompleta) {
+        VisorImagenesPantallaCompleta(
+            imagenes = imagenes,
+            paginaInicial = paginaInicial,
+            onCerrar = {
+                mostrarPantallaCompleta = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun VisorImagenesPantallaCompleta(
+    imagenes: List<SubastaImagenResponse>,
+    paginaInicial: Int,
+    onCerrar: () -> Unit
+) {
+    val pagerState = rememberPagerState(
+        initialPage = paginaInicial,
+        pageCount = { imagenes.size }
+    )
+
+    Dialog(
+        onDismissRequest = onCerrar
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                AppImage(
+                    imageUrl = imagenes.getOrNull(page)?.url,
+                    contentDescription = "",
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Button(
+                onClick = onCerrar,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+            ) {
+                Text("Cerrar")
+            }
+
+            if (imagenes.size > 1) {
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${imagenes.size}",
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(20.dp)
+                )
+            }
+        }
+    }
 }
 
 fun formatearFecha(fecha: String?): String {

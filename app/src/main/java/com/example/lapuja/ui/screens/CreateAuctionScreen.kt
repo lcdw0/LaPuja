@@ -7,21 +7,30 @@ import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.remote.RetrofitClient
+import com.example.lapuja.data.remote.SubastaImagenRequest
 import com.example.lapuja.data.remote.SubastaRequest
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -57,7 +66,11 @@ fun CreateAuctionScreen(
     var fechaMillis by remember { mutableStateOf<Long?>(null) }
     var horaSeleccionada by remember { mutableStateOf<Int?>(null) }
     var minutoSeleccionado by remember { mutableStateOf<Int?>(null) }
-    var imagenUri by remember { mutableStateOf<Uri?>(null) }
+
+    val imagenesSeleccionadas = remember { mutableStateListOf<Uri>() }
+
+    var imagenArrastrandoIndex by remember { mutableStateOf<Int?>(null) }
+    var desplazamientoX by remember { mutableStateOf(0f) }
 
     val categorias = listOf(
         "Tecnología", "Computadoras", "Celulares", "Videojuegos",
@@ -65,10 +78,20 @@ fun CreateAuctionScreen(
         "Coleccionables", "Otros"
     )
 
-    val launcherImagen = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) imagenUri = uri
+    val launcherImagenes = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val disponibles = 10 - imagenesSeleccionadas.size
+            val nuevas = uris.take(disponibles)
+
+            imagenesSeleccionadas.addAll(nuevas)
+            error = ""
+
+            if (uris.size > disponibles) {
+                error = "Solo se permiten hasta 10 imágenes por subasta."
+            }
+        }
     }
 
     val datePickerState = rememberDatePickerState(
@@ -151,6 +174,15 @@ fun CreateAuctionScreen(
         } catch (e: Exception) {
             null
         }
+    }
+
+    fun moverImagen(origen: Int, destino: Int) {
+        if (origen !in imagenesSeleccionadas.indices || destino !in imagenesSeleccionadas.indices) {
+            return
+        }
+
+        val imagen = imagenesSeleccionadas.removeAt(origen)
+        imagenesSeleccionadas.add(destino, imagen)
     }
 
     Column(
@@ -262,45 +294,156 @@ fun CreateAuctionScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Imágenes del producto", fontSize = 20.sp)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Selecciona de 1 a 10 imágenes. La primera imagen será la portada. Mantén presionada una imagen para arrastrarla y cambiar el orden.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.outline
+        )
+
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = { launcherImagen.launch(arrayOf("image/*")) },
+            onClick = {
+                if (imagenesSeleccionadas.size >= 10) {
+                    error = "Ya seleccionaste el máximo de 10 imágenes."
+                } else {
+                    launcherImagenes.launch(arrayOf("image/*"))
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text(
-                if (imagenUri == null)
-                    "Seleccionar foto del producto"
-                else
-                    "Cambiar foto del producto"
-            )
+            Text("Agregar imágenes (${imagenesSeleccionadas.size}/10)")
         }
 
-        if (imagenUri != null) {
-            Spacer(modifier = Modifier.height(12.dp))
+        if (imagenesSeleccionadas.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(14.dp))
 
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(220.dp),
-                shape = RoundedCornerShape(18.dp)
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        ImageView(ctx).apply {
-                            layoutParams = ViewGroup.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
+                itemsIndexed(imagenesSeleccionadas) { index, uri ->
+                    val arrastrando = imagenArrastrandoIndex == index
+
+                    Card(
+                        modifier = Modifier
+                            .width(165.dp)
+                            .zIndex(if (arrastrando) 1f else 0f)
+                            .graphicsLayer {
+                                translationX = if (arrastrando) desplazamientoX else 0f
+                                scaleX = if (arrastrando) 1.04f else 1f
+                                scaleY = if (arrastrando) 1.04f else 1f
+                            }
+                            .pointerInput(index, imagenesSeleccionadas.size) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        imagenArrastrandoIndex = index
+                                        desplazamientoX = 0f
+                                    },
+                                    onDragEnd = {
+                                        imagenArrastrandoIndex = null
+                                        desplazamientoX = 0f
+                                    },
+                                    onDragCancel = {
+                                        imagenArrastrandoIndex = null
+                                        desplazamientoX = 0f
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+
+                                        desplazamientoX += dragAmount.x
+
+                                        val actual = imagenArrastrandoIndex ?: index
+                                        val limite = 95f
+
+                                        if (desplazamientoX > limite && actual < imagenesSeleccionadas.lastIndex) {
+                                            moverImagen(actual, actual + 1)
+                                            imagenArrastrandoIndex = actual + 1
+                                            desplazamientoX = 0f
+                                        }
+
+                                        if (desplazamientoX < -limite && actual > 0) {
+                                            moverImagen(actual, actual - 1)
+                                            imagenArrastrandoIndex = actual - 1
+                                            desplazamientoX = 0f
+                                        }
+                                    }
+                                )
+                            },
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        ImageView(ctx).apply {
+                                            layoutParams = ViewGroup.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
+                                            scaleType = ImageView.ScaleType.CENTER_CROP
+                                        }
+                                    },
+                                    update = { imageView ->
+                                        imageView.setImageURI(uri)
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (index == 0)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = if (index == 0) "Portada" else "Imagen ${index + 1}",
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Text(
+                                text = "Mantén presionado para mover",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.outline
                             )
-                            scaleType = ImageView.ScaleType.CENTER_CROP
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            OutlinedButton(
+                                onClick = {
+                                    imagenesSeleccionadas.removeAt(index)
+                                    error = ""
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Eliminar")
+                            }
                         }
-                    },
-                    update = { imageView ->
-                        imageView.setImageURI(imagenUri)
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                    }
+                }
             }
         }
 
@@ -354,8 +497,8 @@ fun CreateAuctionScreen(
                         return@Button
                     }
 
-                    imagenUri == null -> {
-                        error = "Seleccione una foto del producto."
+                    imagenesSeleccionadas.isEmpty() -> {
+                        error = "Seleccione al menos una imagen del producto."
                         return@Button
                     }
 
@@ -377,57 +520,82 @@ fun CreateAuctionScreen(
 
                 scope.launch {
                     try {
-                        val parteImagen = crearParteImagen(context, imagenUri!!)
+                        val urlsSubidas = mutableListOf<String>()
 
-                        if (parteImagen == null) {
-                            error = "No se pudo preparar la imagen."
-                            cargando = false
-                            return@launch
+                        for (uri in imagenesSeleccionadas) {
+                            val parteImagen = crearParteImagen(context, uri)
+
+                            if (parteImagen == null) {
+                                error = "No se pudo preparar una de las imágenes."
+                                cargando = false
+                                return@launch
+                            }
+
+                            val responseImagen = RetrofitClient.api.subirImagenSubasta(parteImagen)
+
+                            if (!responseImagen.isSuccessful || responseImagen.body()?.ok != true) {
+                                error = responseImagen.body()?.mensaje ?: "No se pudo subir una imagen."
+                                cargando = false
+                                return@launch
+                            }
+
+                            val urlImagen = responseImagen.body()?.url
+
+                            if (urlImagen.isNullOrBlank()) {
+                                error = "La API no devolvió la URL de una imagen."
+                                cargando = false
+                                return@launch
+                            }
+
+                            urlsSubidas.add(urlImagen)
                         }
 
-                        val responseImagen = RetrofitClient.api.subirImagenSubasta(parteImagen)
-
-                        if (!responseImagen.isSuccessful || responseImagen.body()?.ok != true) {
-                            error = responseImagen.body()?.mensaje ?: "No se pudo subir la imagen."
-                            cargando = false
-                            return@launch
-                        }
-
-                        val urlImagen = responseImagen.body()?.url
-
-                        if (urlImagen.isNullOrBlank()) {
-                            error = "La API no devolvió la URL de la imagen."
-                            cargando = false
-                            return@launch
-                        }
-
-                        val response = RetrofitClient.api.crearSubasta(
+                        val responseSubasta = RetrofitClient.api.crearSubasta(
                             SubastaRequest(
                                 nombre = nombre,
                                 descripcion = descripcion,
                                 precioInicial = precioConvertido!!,
                                 categoria = categoria,
-                                imagen = urlImagen,
+                                imagen = urlsSubidas.first(),
                                 usuarioId = usuarioId,
                                 fechaFin = fechaApi()
                             )
                         )
 
-                        if (response.isSuccessful) {
-                            nombre = ""
-                            descripcion = ""
-                            precio = ""
-                            categoria = ""
-                            fechaMillis = null
-                            horaSeleccionada = null
-                            minutoSeleccionado = null
-                            imagenUri = null
-                            error = ""
-
-                            onAuctionCreated()
-                        } else {
+                        if (!responseSubasta.isSuccessful || responseSubasta.body() == null) {
                             error = "No se pudo crear la subasta. Revise los datos ingresados."
+                            cargando = false
+                            return@launch
                         }
+
+                        val subastaCreada = responseSubasta.body()!!
+                        val subastaId = subastaCreada.id
+
+                        for (url in urlsSubidas) {
+                            val responseAgregarImagen = RetrofitClient.api.agregarImagenSubasta(
+                                subastaId = subastaId,
+                                request = SubastaImagenRequest(url = url)
+                            )
+
+                            if (!responseAgregarImagen.isSuccessful) {
+                                error = "La subasta fue creada, pero no se pudieron asociar todas las imágenes."
+                                cargando = false
+                                return@launch
+                            }
+                        }
+
+                        nombre = ""
+                        descripcion = ""
+                        precio = ""
+                        categoria = ""
+                        fechaMillis = null
+                        horaSeleccionada = null
+                        minutoSeleccionado = null
+                        imagenesSeleccionadas.clear()
+                        error = ""
+
+                        onAuctionCreated()
+
                     } catch (e: Exception) {
                         error = "No se pudo conectar con la API."
                     } finally {

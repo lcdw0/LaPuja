@@ -154,6 +154,11 @@ fun LoginScreen(
                                             .putLong("usuarioId", body.id ?: 0L)
                                             .putString("nombre", body.nombre ?: "")
                                             .putString("correo", body.correo ?: "")
+                                            .putString("fotoPerfil", body.fotoPerfil ?: "")
+                                            .putString("telefono", body.telefono ?: "")
+                                            .putString("ciudad", body.ciudad ?: "")
+                                            .putString("biografia", body.biografia ?: "")
+                                            .putString("fechaRegistro", body.fechaRegistro ?: "")
                                             .apply()
 
                                         navController.navigate("home") {

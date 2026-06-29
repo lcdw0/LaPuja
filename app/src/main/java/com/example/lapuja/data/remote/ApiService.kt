@@ -53,6 +53,35 @@ interface ApiService {
     @PUT("api/subastas/{id}/finalizar")
     suspend fun finalizarSubasta(@Path("id") id: Long): Response<SubastaResponse>
 
+    @GET("api/subastas/{subastaId}/imagenes")
+    suspend fun listarImagenesSubasta(
+        @Path("subastaId") subastaId: Long
+    ): Response<List<SubastaImagenResponse>>
+
+    @POST("api/subastas/{subastaId}/imagenes")
+    suspend fun agregarImagenSubasta(
+        @Path("subastaId") subastaId: Long,
+        @Body request: SubastaImagenRequest
+    ): Response<SubastaImagenResponse>
+
+    @PUT("api/subastas/{subastaId}/imagenes/{imagenId}/principal")
+    suspend fun marcarImagenPrincipal(
+        @Path("subastaId") subastaId: Long,
+        @Path("imagenId") imagenId: Long
+    ): Response<SubastaImagenResponse>
+
+    @DELETE("api/subastas/{subastaId}/imagenes/{imagenId}")
+    suspend fun eliminarImagenSubasta(
+        @Path("subastaId") subastaId: Long,
+        @Path("imagenId") imagenId: Long
+    ): Response<ApiResponse>
+
+    @PUT("api/subastas/{subastaId}/imagenes/reordenar")
+    suspend fun reordenarImagenesSubasta(
+        @Path("subastaId") subastaId: Long,
+        @Body idsOrdenados: List<Long>
+    ): Response<List<SubastaImagenResponse>>
+
     @POST("api/pujas")
     suspend fun crearPuja(@Body request: PujaRequest): Response<PujaResponse>
 

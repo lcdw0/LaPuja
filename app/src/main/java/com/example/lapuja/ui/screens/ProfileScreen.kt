@@ -30,16 +30,16 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val usuarioId = prefs.getLong("usuarioId", 0L)
 
-    val nombre by remember { mutableStateOf(prefs.getString("nombre", "Usuario LaPuja") ?: "Usuario LaPuja") }
-    val correo by remember { mutableStateOf(prefs.getString("correo", "Sin correo") ?: "Sin correo") }
+    var nombre by remember { mutableStateOf(prefs.getString("nombre", "Usuario LaPuja") ?: "Usuario LaPuja") }
+    var correo by remember { mutableStateOf(prefs.getString("correo", "Sin correo") ?: "Sin correo") }
     var saldo by remember { mutableStateOf(prefs.getFloat("saldo", 10000f)) }
     var saldoRetenido by remember { mutableStateOf(0.0) }
 
-    val fotoPerfil by remember { mutableStateOf(prefs.getString("fotoPerfil", null)) }
-    val telefono by remember { mutableStateOf(prefs.getString("telefono", "") ?: "") }
-    val ciudad by remember { mutableStateOf(prefs.getString("ciudad", "") ?: "") }
-    val biografia by remember { mutableStateOf(prefs.getString("biografia", "") ?: "") }
-    val fechaRegistro by remember { mutableStateOf(prefs.getString("fechaRegistro", "") ?: "") }
+    var fotoPerfil by remember { mutableStateOf(prefs.getString("fotoPerfil", null)) }
+    var telefono by remember { mutableStateOf(prefs.getString("telefono", "") ?: "") }
+    var ciudad by remember { mutableStateOf(prefs.getString("ciudad", "") ?: "") }
+    var biografia by remember { mutableStateOf(prefs.getString("biografia", "") ?: "") }
+    var fechaRegistro by remember { mutableStateOf(prefs.getString("fechaRegistro", "") ?: "") }
 
     var totalSubastas by remember { mutableStateOf(0) }
     var totalPujas by remember { mutableStateOf(0) }
@@ -49,6 +49,31 @@ fun ProfileScreen(
         scope.launch {
             try {
                 if (usuarioId != 0L) {
+
+                    val responseUsuario = RetrofitClient.api.obtenerUsuario(usuarioId)
+
+                    if (responseUsuario.isSuccessful && responseUsuario.body()?.ok == true) {
+                        val usuario = responseUsuario.body()!!
+
+                        nombre = usuario.nombre ?: nombre
+                        correo = usuario.correo ?: correo
+                        fotoPerfil = usuario.fotoPerfil
+                        telefono = usuario.telefono ?: ""
+                        ciudad = usuario.ciudad ?: ""
+                        biografia = usuario.biografia ?: ""
+                        fechaRegistro = usuario.fechaRegistro ?: ""
+
+                        prefs.edit()
+                            .putString("nombre", nombre)
+                            .putString("correo", correo)
+                            .putString("fotoPerfil", fotoPerfil ?: "")
+                            .putString("telefono", telefono)
+                            .putString("ciudad", ciudad)
+                            .putString("biografia", biografia)
+                            .putString("fechaRegistro", fechaRegistro)
+                            .apply()
+                    }
+
                     RetrofitClient.api.obtenerSaldo(usuarioId).let {
                         if (it.isSuccessful && it.body()?.ok == true) {
                             val nuevoSaldo = it.body()?.saldo ?: saldo.toDouble()
