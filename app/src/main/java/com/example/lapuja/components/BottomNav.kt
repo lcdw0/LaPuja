@@ -19,7 +19,9 @@ fun BottomNav(navController: NavController) {
         NavigationBarItem(
             selected = currentRoute == "home",
             onClick = {
-                navController.navigate("home")
+                navController.navigate("home") {
+                    launchSingleTop = true
+                }
             },
             label = {
                 Text("Inicio")
@@ -32,7 +34,9 @@ fun BottomNav(navController: NavController) {
         NavigationBarItem(
             selected = currentRoute == "auction",
             onClick = {
-                navController.navigate("auction")
+                navController.navigate("auction") {
+                    launchSingleTop = true
+                }
             },
             label = {
                 Text("Subastas")
@@ -45,7 +49,9 @@ fun BottomNav(navController: NavController) {
         NavigationBarItem(
             selected = currentRoute == "create_auction",
             onClick = {
-                navController.navigate("create_auction")
+                navController.navigate("create_auction") {
+                    launchSingleTop = true
+                }
             },
             label = {
                 Text("Crear")
@@ -56,22 +62,26 @@ fun BottomNav(navController: NavController) {
         )
 
         NavigationBarItem(
-            selected = currentRoute == "history",
+            selected = currentRoute == "dashboard",
             onClick = {
-                navController.navigate("history")
+                navController.navigate("dashboard") {
+                    launchSingleTop = true
+                }
             },
             label = {
-                Text("Historial")
+                Text("Dashboard")
             },
             icon = {
-                Text("📜")
+                Text("📊")
             }
         )
 
         NavigationBarItem(
             selected = currentRoute == "profile",
             onClick = {
-                navController.navigate("profile")
+                navController.navigate("profile") {
+                    launchSingleTop = true
+                }
             },
             label = {
                 Text("Perfil")

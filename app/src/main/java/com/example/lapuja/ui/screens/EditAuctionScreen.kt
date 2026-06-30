@@ -7,31 +7,22 @@ import android.widget.ImageView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.zIndex
-import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.remote.RetrofitClient
-import com.example.lapuja.data.remote.SubastaImagenRequest
 import com.example.lapuja.data.remote.SubastaRequest
+import com.example.lapuja.ui.components.AppImage
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -43,9 +34,9 @@ import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateAuctionScreen(
-    productos: MutableList<AuctionItem>,
-    onAuctionCreated: () -> Unit
+fun EditAuctionScreen(
+    subastaId: Long,
+    onAuctionUpdated: () -> Unit
 ) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("app", Context.MODE_PRIVATE)
@@ -56,8 +47,12 @@ fun CreateAuctionScreen(
     var descripcion by remember { mutableStateOf("") }
     var precio by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("") }
+    var imagenActual by remember { mutableStateOf<String?>(null) }
+    var imagenUri by remember { mutableStateOf<Uri?>(null) }
+
     var error by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
+    var cargandoDatos by remember { mutableStateOf(true) }
 
     var categoriaExpandida by remember { mutableStateOf(false) }
     var mostrarFecha by remember { mutableStateOf(false) }
@@ -67,30 +62,18 @@ fun CreateAuctionScreen(
     var horaSeleccionada by remember { mutableStateOf<Int?>(null) }
     var minutoSeleccionado by remember { mutableStateOf<Int?>(null) }
 
-    val imagenesSeleccionadas = remember { mutableStateListOf<Uri>() }
-
-    var imagenArrastrandoIndex by remember { mutableStateOf<Int?>(null) }
-    var desplazamientoX by remember { mutableStateOf(0f) }
-
     val categorias = listOf(
         "Tecnología", "Computadoras", "Celulares", "Videojuegos",
         "Electrodomésticos", "Vehículos", "Ropa", "Hogar",
         "Coleccionables", "Otros"
     )
 
-    val launcherImagenes = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            val disponibles = 10 - imagenesSeleccionadas.size
-            val nuevas = uris.take(disponibles)
-
-            imagenesSeleccionadas.addAll(nuevas)
+    val launcherImagen = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            imagenUri = uri
             error = ""
-
-            if (uris.size > disponibles) {
-                error = "Solo se permiten hasta 10 imágenes por subasta."
-            }
         }
     }
 
@@ -129,19 +112,37 @@ fun CreateAuctionScreen(
         is24Hour = true
     )
 
+    fun cargarFechaExistente(fechaApi: String?) {
+        if (fechaApi.isNullOrBlank()) return
+
+        try {
+            val formato = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US)
+            val fecha = formato.parse(fechaApi) ?: return
+
+            val cal = Calendar.getInstance().apply {
+                time = fecha
+            }
+
+            fechaMillis = cal.timeInMillis
+            horaSeleccionada = cal.get(Calendar.HOUR_OF_DAY)
+            minutoSeleccionado = cal.get(Calendar.MINUTE)
+        } catch (_: Exception) {
+        }
+    }
+
     fun construirFechaFinal(): Calendar? {
         val millis = fechaMillis ?: return null
         val hora = horaSeleccionada ?: return null
         val minuto = minutoSeleccionado ?: return null
 
-        val fechaUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        val fechaBase = Calendar.getInstance().apply {
             timeInMillis = millis
         }
 
         return Calendar.getInstance().apply {
-            set(Calendar.YEAR, fechaUtc.get(Calendar.YEAR))
-            set(Calendar.MONTH, fechaUtc.get(Calendar.MONTH))
-            set(Calendar.DAY_OF_MONTH, fechaUtc.get(Calendar.DAY_OF_MONTH))
+            set(Calendar.YEAR, fechaBase.get(Calendar.YEAR))
+            set(Calendar.MONTH, fechaBase.get(Calendar.MONTH))
+            set(Calendar.DAY_OF_MONTH, fechaBase.get(Calendar.DAY_OF_MONTH))
             set(Calendar.HOUR_OF_DAY, hora)
             set(Calendar.MINUTE, minuto)
             set(Calendar.SECOND, 0)
@@ -176,13 +177,41 @@ fun CreateAuctionScreen(
         }
     }
 
-    fun moverImagen(origen: Int, destino: Int) {
-        if (origen !in imagenesSeleccionadas.indices || destino !in imagenesSeleccionadas.indices) {
-            return
-        }
+    LaunchedEffect(subastaId) {
+        try {
+            cargandoDatos = true
+            error = ""
 
-        val imagen = imagenesSeleccionadas.removeAt(origen)
-        imagenesSeleccionadas.add(destino, imagen)
+            val response = RetrofitClient.api.obtenerSubasta(subastaId)
+
+            if (response.isSuccessful && response.body() != null) {
+                val subasta = response.body()!!
+
+                if (subasta.usuarioId != usuarioId) {
+                    error = "No tienes permiso para editar esta subasta."
+                    return@LaunchedEffect
+                }
+
+                if (subasta.estado != "ACTIVA" || subasta.ofertas > 0) {
+                    error = "Esta subasta ya no se puede editar."
+                    return@LaunchedEffect
+                }
+
+                nombre = subasta.nombre
+                descripcion = subasta.descripcion
+                precio = subasta.precioInicial.toString()
+                categoria = subasta.categoria
+                imagenActual = subasta.imagen
+
+                cargarFechaExistente(subasta.fechaFin)
+            } else {
+                error = "No se pudo cargar la subasta."
+            }
+        } catch (e: Exception) {
+            error = "No se pudo conectar con la API."
+        } finally {
+            cargandoDatos = false
+        }
     }
 
     Column(
@@ -191,9 +220,14 @@ fun CreateAuctionScreen(
             .padding(20.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Text(text = "Crear subasta", fontSize = 30.sp)
+        Text(text = "Editar subasta", fontSize = 30.sp)
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        if (cargandoDatos) {
+            Text("Cargando subasta...")
+            return@Column
+        }
 
         OutlinedTextField(
             value = nombre,
@@ -294,156 +328,58 @@ fun CreateAuctionScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(text = "Imágenes del producto", fontSize = 20.sp)
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Selecciona de 1 a 10 imágenes. La primera imagen será la portada. Mantén presionada una imagen para arrastrarla y cambiar el orden.",
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.outline
-        )
-
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedButton(
-            onClick = {
-                if (imagenesSeleccionadas.size >= 10) {
-                    error = "Ya seleccionaste el máximo de 10 imágenes."
-                } else {
-                    launcherImagenes.launch(arrayOf("image/*"))
-                }
-            },
+            onClick = { launcherImagen.launch(arrayOf("image/*")) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text("Agregar imágenes (${imagenesSeleccionadas.size}/10)")
+            Text(
+                if (imagenUri == null)
+                    "Cambiar foto del producto"
+                else
+                    "Foto nueva seleccionada"
+            )
         }
 
-        if (imagenesSeleccionadas.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        if (imagenUri != null) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                shape = RoundedCornerShape(18.dp)
             ) {
-                itemsIndexed(imagenesSeleccionadas) { index, uri ->
-                    val arrastrando = imagenArrastrandoIndex == index
-
-                    Card(
-                        modifier = Modifier
-                            .width(165.dp)
-                            .zIndex(if (arrastrando) 1f else 0f)
-                            .graphicsLayer {
-                                translationX = if (arrastrando) desplazamientoX else 0f
-                                scaleX = if (arrastrando) 1.04f else 1f
-                                scaleY = if (arrastrando) 1.04f else 1f
-                            }
-                            .pointerInput(index, imagenesSeleccionadas.size) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = {
-                                        imagenArrastrandoIndex = index
-                                        desplazamientoX = 0f
-                                    },
-                                    onDragEnd = {
-                                        imagenArrastrandoIndex = null
-                                        desplazamientoX = 0f
-                                    },
-                                    onDragCancel = {
-                                        imagenArrastrandoIndex = null
-                                        desplazamientoX = 0f
-                                    },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-
-                                        desplazamientoX += dragAmount.x
-
-                                        val actual = imagenArrastrandoIndex ?: index
-                                        val limite = 95f
-
-                                        if (desplazamientoX > limite && actual < imagenesSeleccionadas.lastIndex) {
-                                            moverImagen(actual, actual + 1)
-                                            imagenArrastrandoIndex = actual + 1
-                                            desplazamientoX = 0f
-                                        }
-
-                                        if (desplazamientoX < -limite && actual > 0) {
-                                            moverImagen(actual, actual - 1)
-                                            imagenArrastrandoIndex = actual - 1
-                                            desplazamientoX = 0f
-                                        }
-                                    }
-                                )
-                            },
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(120.dp),
-                                shape = RoundedCornerShape(14.dp)
-                            ) {
-                                AndroidView(
-                                    factory = { ctx ->
-                                        ImageView(ctx).apply {
-                                            layoutParams = ViewGroup.LayoutParams(
-                                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                                ViewGroup.LayoutParams.MATCH_PARENT
-                                            )
-                                            scaleType = ImageView.ScaleType.CENTER_CROP
-                                        }
-                                    },
-                                    update = { imageView ->
-                                        imageView.setImageURI(uri)
-                                    },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = if (index == 0)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Text(
-                                    text = if (index == 0) "Portada" else "Imagen ${index + 1}",
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                text = "Mantén presionado para mover",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.outline
+                AndroidView(
+                    factory = { ctx ->
+                        ImageView(ctx).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
                             )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            OutlinedButton(
-                                onClick = {
-                                    imagenesSeleccionadas.removeAt(index)
-                                    error = ""
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Eliminar")
-                            }
+                            scaleType = ImageView.ScaleType.CENTER_CROP
                         }
-                    }
-                }
+                    },
+                    update = { imageView ->
+                        imageView.setImageURI(imagenUri)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        } else if (!imagenActual.isNullOrBlank()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                AppImage(
+                    imageUrl = imagenActual,
+                    contentDescription = nombre,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
         }
 
@@ -497,13 +433,8 @@ fun CreateAuctionScreen(
                         return@Button
                     }
 
-                    imagenesSeleccionadas.isEmpty() -> {
-                        error = "Seleccione al menos una imagen del producto."
-                        return@Button
-                    }
-
                     usuarioId == 0L -> {
-                        error = "Debe iniciar sesión para crear una subasta."
+                        error = "Debe iniciar sesión para editar una subasta."
                         return@Button
                     }
                 }
@@ -520,13 +451,13 @@ fun CreateAuctionScreen(
 
                 scope.launch {
                     try {
-                        val urlsSubidas = mutableListOf<String>()
+                        var urlImagenFinal = imagenActual
 
-                        for (uri in imagenesSeleccionadas) {
-                            val parteImagen = crearParteImagen(context, uri)
+                        if (imagenUri != null) {
+                            val parteImagen = crearParteImagen(context, imagenUri!!)
 
                             if (parteImagen == null) {
-                                error = "No se pudo preparar una de las imágenes."
+                                error = "No se pudo preparar la imagen."
                                 cargando = false
                                 return@launch
                             }
@@ -534,68 +465,38 @@ fun CreateAuctionScreen(
                             val responseImagen = RetrofitClient.api.subirImagenSubasta(parteImagen)
 
                             if (!responseImagen.isSuccessful || responseImagen.body()?.ok != true) {
-                                error = responseImagen.body()?.mensaje ?: "No se pudo subir una imagen."
+                                error = responseImagen.body()?.mensaje ?: "No se pudo subir la imagen."
                                 cargando = false
                                 return@launch
                             }
 
-                            val urlImagen = responseImagen.body()?.url
-
-                            if (urlImagen.isNullOrBlank()) {
-                                error = "La API no devolvió la URL de una imagen."
-                                cargando = false
-                                return@launch
-                            }
-
-                            urlsSubidas.add(urlImagen)
+                            urlImagenFinal = responseImagen.body()?.url
                         }
 
-                        val responseSubasta = RetrofitClient.api.crearSubasta(
-                            SubastaRequest(
+                        if (urlImagenFinal.isNullOrBlank()) {
+                            error = "La subasta debe tener una imagen."
+                            cargando = false
+                            return@launch
+                        }
+
+                        val response = RetrofitClient.api.editarSubasta(
+                            id = subastaId,
+                            request = SubastaRequest(
                                 nombre = nombre,
                                 descripcion = descripcion,
                                 precioInicial = precioConvertido!!,
                                 categoria = categoria,
-                                imagen = urlsSubidas.first(),
+                                imagen = urlImagenFinal,
                                 usuarioId = usuarioId,
                                 fechaFin = fechaApi()
                             )
                         )
 
-                        if (!responseSubasta.isSuccessful || responseSubasta.body() == null) {
-                            error = "No se pudo crear la subasta. Revise los datos ingresados."
-                            cargando = false
-                            return@launch
+                        if (response.isSuccessful) {
+                            onAuctionUpdated()
+                        } else {
+                            error = "No se pudo actualizar la subasta."
                         }
-
-                        val subastaCreada = responseSubasta.body()!!
-                        val subastaId = subastaCreada.id
-
-                        for (url in urlsSubidas) {
-                            val responseAgregarImagen = RetrofitClient.api.agregarImagenSubasta(
-                                subastaId = subastaId,
-                                request = SubastaImagenRequest(url = url)
-                            )
-
-                            if (!responseAgregarImagen.isSuccessful) {
-                                error = "La subasta fue creada, pero no se pudieron asociar todas las imágenes."
-                                cargando = false
-                                return@launch
-                            }
-                        }
-
-                        nombre = ""
-                        descripcion = ""
-                        precio = ""
-                        categoria = ""
-                        fechaMillis = null
-                        horaSeleccionada = null
-                        minutoSeleccionado = null
-                        imagenesSeleccionadas.clear()
-                        error = ""
-
-                        onAuctionCreated()
-
                     } catch (e: Exception) {
                         error = "No se pudo conectar con la API."
                     } finally {
@@ -603,11 +504,11 @@ fun CreateAuctionScreen(
                     }
                 }
             },
-            enabled = !cargando,
+            enabled = !cargando && error != "No tienes permiso para editar esta subasta." && error != "Esta subasta ya no se puede editar.",
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp)
         ) {
-            Text(if (cargando) "Publicando..." else "Publicar subasta")
+            Text(if (cargando) "Guardando..." else "Guardar cambios")
         }
     }
 

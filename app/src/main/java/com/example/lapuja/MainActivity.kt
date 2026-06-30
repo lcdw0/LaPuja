@@ -8,32 +8,36 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.lapuja.components.BottomNav
 import com.example.lapuja.data.AuctionItem
 import com.example.lapuja.data.Bid
-import com.example.lapuja.ui.screens.AuctionDetailScreen
-import com.example.lapuja.ui.screens.AuctionScreen
-import com.example.lapuja.ui.screens.CreateAuctionScreen
-import com.example.lapuja.ui.screens.EditProfileScreen
-import com.example.lapuja.ui.screens.HistoryScreen
-import com.example.lapuja.ui.screens.HomeScreen
-import com.example.lapuja.ui.screens.LoginScreen
-import com.example.lapuja.ui.screens.MyAuctionsScreen
-import com.example.lapuja.ui.screens.MyBidsScreen
-import com.example.lapuja.ui.screens.PaymentMethodsScreen
-import com.example.lapuja.ui.screens.ProfileScreen
-import com.example.lapuja.ui.screens.RegisterScreen
+import com.example.lapuja.ui.screens.*
 import com.example.lapuja.ui.theme.LaPujaTheme
+import com.example.lapuja.ui.dashboard.DashboardScreen
+import com.example.lapuja.ui.screens.PublicProfileScreen
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import com.example.lapuja.components.NotificationBell
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.lapuja.ui.notifications.NotificationViewModel
+import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
+import com.example.lapuja.ui.navigation.Routes
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 
 class MainActivity : ComponentActivity() {
 
@@ -50,26 +54,57 @@ class MainActivity : ComponentActivity() {
                 .apply()
         }
 
+        val deepLinkUri = intent?.data
+
         enableEdgeToEdge()
 
         setContent {
             LaPujaTheme {
-                MainScreen(prefs = prefs)
+                MainScreen(
+                    prefs = prefs,
+                    deepLinkUri = deepLinkUri
+                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(prefs: SharedPreferences) {
+fun MainScreen(
+    prefs: SharedPreferences,
+    deepLinkUri: Uri? = null
+) {
     val navController = rememberNavController()
+
+    LaunchedEffect(deepLinkUri) {
+        deepLinkUri?.let { uri ->
+            val token = uri.getQueryParameter("token")
+
+            when (uri.host) {
+                "verificar-correo" -> {
+                    if (!token.isNullOrBlank()) {
+                        navController.navigate("verify_email/$token")
+                    }
+                }
+
+                "recuperar-password" -> {
+                    if (!token.isNullOrBlank()) {
+                        navController.navigate("reset_password/$token")
+                    }
+                }
+            }
+        }
+    }
+
+    val notificationViewModel: NotificationViewModel = viewModel()
 
     val historial = remember {
         mutableStateListOf<Bid>()
     }
 
-    var selectedAuction by remember {
-        mutableStateOf<AuctionItem?>(null)
+    val productos = remember {
+        mutableStateListOf<AuctionItem>()
     }
 
     val usuarioGuardado = prefs.getString("correo", null)
@@ -81,6 +116,56 @@ fun MainScreen(prefs: SharedPreferences) {
     }
 
     Scaffold(
+        topBar = {
+            val currentRoute = navController
+                .currentBackStackEntryAsState()
+                .value
+                ?.destination
+                ?.route
+
+            if (
+                currentRoute != "login" &&
+                currentRoute != "register" &&
+                currentRoute != "forgot_password" &&
+                currentRoute?.startsWith("chat/") != true &&
+                currentRoute?.startsWith("verify_email") != true &&
+                currentRoute?.startsWith("reset_password") != true &&
+                currentRoute != "notifications"
+            ) {
+                TopAppBar(
+                    title = { Text("LaPuja") },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                navController.navigate("chat_list")
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = "Mensajes"
+                            )
+                        }
+
+                        NotificationBell(
+                            prefs = prefs,
+                            navController = navController,
+                            notificationViewModel = notificationViewModel
+                        )
+
+                        IconButton(
+                            onClick = {
+                                navController.navigate("profile")
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = "Perfil"
+                            )
+                        }
+                    }
+                )
+            }
+        },
         bottomBar = {
             val currentRoute = navController
                 .currentBackStackEntryAsState()
@@ -91,7 +176,13 @@ fun MainScreen(prefs: SharedPreferences) {
             if (
                 currentRoute != "login" &&
                 currentRoute != "register" &&
-                currentRoute != "auction_detail"
+                currentRoute != "forgot_password" &&
+                currentRoute?.startsWith("verify_email") != true &&
+                currentRoute?.startsWith("reset_password") != true &&
+                currentRoute != "notifications" &&
+                currentRoute?.startsWith("auction_detail") != true &&
+                currentRoute?.startsWith("public_profile") != true &&
+                currentRoute?.startsWith("chat") != true
             ) {
                 BottomNav(navController = navController)
             }
@@ -117,6 +208,38 @@ fun MainScreen(prefs: SharedPreferences) {
                 )
             }
 
+            composable(
+                route = "verify_email/{token}",
+                arguments = listOf(
+                    navArgument("token") {
+                        type = NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                val token = backStackEntry.arguments?.getString("token") ?: ""
+
+                VerifyEmailScreen(
+                    token = token,
+                    navController = navController
+                )
+            }
+
+            composable(
+                route = "reset_password_codigo/{correo}",
+                arguments = listOf(
+                    navArgument("correo") {
+                        type = NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                val correo = backStackEntry.arguments?.getString("correo") ?: ""
+
+                ResetPasswordScreen(
+                    navController = navController,
+                    correoInicial = correo
+                )
+            }
+
             composable("home") {
                 HomeScreen(
                     navController = navController
@@ -127,31 +250,52 @@ fun MainScreen(prefs: SharedPreferences) {
                 AuctionScreen(
                     prefs = prefs,
                     historial = historial,
+                    productos = productos,
                     onAuctionClick = { auction ->
-                        selectedAuction = auction
-                        navController.navigate("auction_detail")
+                        navController.navigate("auction_detail/${auction.idApi}")
                     }
                 )
             }
 
             composable("create_auction") {
-                CreateAuctionScreen()
+                CreateAuctionScreen(
+                    productos = productos,
+                    onAuctionCreated = {
+                        navController.navigate("auction") {
+                            popUpTo("create_auction") {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
             }
 
-            composable("auction_detail") {
-                selectedAuction?.let { auction ->
-                    AuctionDetailScreen(
-                        auction = auction,
-                        onBackClick = {
-                            navController.popBackStack()
-                        }
-                    )
-                }
+            composable(
+                route = "auction_detail/{subastaId}",
+                arguments = listOf(
+                    navArgument("subastaId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val subastaId = backStackEntry.arguments?.getLong("subastaId") ?: 0L
+
+                AuctionDetailScreen(
+                    subastaId = subastaId,
+                    prefs = prefs,
+                    historial = historial,
+                    navController = navController,
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
             }
 
             composable("history") {
                 HistoryScreen(
-                    historial = historial
+                    historial = historial,
+                    navController = navController
                 )
             }
 
@@ -162,20 +306,157 @@ fun MainScreen(prefs: SharedPreferences) {
                 )
             }
 
+            composable(Routes.WALLET) {
+                WalletScreen(
+                    prefs = prefs,
+                    navController = navController
+                )
+            }
+
             composable("edit_profile") {
-                EditProfileScreen()
+                EditProfileScreen(
+                    prefs = prefs,
+                    navController = navController
+                )
             }
 
             composable("my_auctions") {
-                MyAuctionsScreen()
+                MyAuctionsScreen(
+                    productos = productos,
+                    navController = navController
+                )
             }
 
             composable("my_bids") {
-                MyBidsScreen()
+                MyBidsScreen(
+                    historial = historial,
+                    navController = navController
+                )
             }
 
             composable("payment_methods") {
                 PaymentMethodsScreen()
+            }
+
+            composable("saved_auctions") {
+                SavedAuctionsScreen(
+                    navController = navController
+                )
+            }
+
+            composable("recharge_wallet") {
+                RechargeWalletScreen(
+                    navController = navController,
+                    prefs = prefs
+                )
+            }
+
+            composable("wallet_history") {
+                WalletHistoryScreen()
+            }
+
+            composable("held_funds") {
+                HeldFundsScreen()
+            }
+
+            composable(
+                route = "edit_auction/{subastaId}",
+                arguments = listOf(
+                    navArgument("subastaId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val subastaId = backStackEntry.arguments?.getLong("subastaId") ?: 0L
+
+                EditAuctionScreen(
+                    subastaId = subastaId,
+                    onAuctionUpdated = {
+                        navController.navigate("my_auctions") {
+                            popUpTo("edit_auction/{subastaId}") {
+                                inclusive = true
+                            }
+                        }
+                    }
+                )
+            }
+
+            fun obtenerUsuarioIdDesdePrefs(prefs: SharedPreferences): Long {
+                return when (val id = prefs.all["usuarioId"]) {
+                    is Long -> id
+                    is Int -> id.toLong()
+                    is String -> id.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
+            }
+
+            composable("dashboard") {
+                val usuarioId = obtenerUsuarioIdDesdePrefs(prefs)
+
+                DashboardScreen(
+                    usuarioId = usuarioId,
+                    navController = navController
+                )
+            }
+
+            composable(
+                route = "public_profile/{usuarioId}",
+                arguments = listOf(
+                    navArgument("usuarioId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val usuarioId = backStackEntry.arguments?.getLong("usuarioId") ?: 0L
+
+                PublicProfileScreen(
+                    usuarioId = usuarioId,
+                    navController = navController
+                )
+            }
+
+            composable("notifications") {
+                NotificationsScreen(
+                    prefs = prefs,
+                    navController = navController,
+                    notificationViewModel = notificationViewModel
+                )
+            }
+
+            composable("chat_list") {
+                ChatListScreen(
+                    prefs = prefs,
+                    onChatClick = { conversacionId ->
+                        navController.navigate("chat/$conversacionId")
+                    }
+                )
+            }
+
+            composable(
+                route = "chat/{conversacionId}",
+                arguments = listOf(
+                    navArgument("conversacionId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val conversacionId =
+                    backStackEntry.arguments?.getLong("conversacionId") ?: 0L
+
+                ChatScreen(
+                    prefs = prefs,
+                    conversacionId = conversacionId,
+                    navController = navController
+                )
+            }
+
+            composable("forgot_password") {
+                ForgotPasswordScreen(
+                    navController = navController
+                )
             }
         }
     }
