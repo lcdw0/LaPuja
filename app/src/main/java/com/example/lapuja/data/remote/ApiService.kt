@@ -134,6 +134,12 @@ interface ApiService {
         @Part file: MultipartBody.Part
     ): Response<ImagenResponse>
 
+    @Multipart
+    @POST("api/imagenes/chat")
+    suspend fun subirImagenChat(
+        @Part file: MultipartBody.Part
+    ): Response<ImagenResponse>
+
     @POST("api/metodos-pago")
     suspend fun agregarMetodoPago(
         @Body request: MetodoPagoRequest
@@ -249,4 +255,33 @@ interface ApiService {
     suspend fun solicitarRecuperacion(
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>
+
+    @POST("api/chat/conversaciones")
+    suspend fun crearConversacionChat(
+        @Query("subastaId") subastaId: Long,
+        @Query("compradorId") compradorId: Long,
+        @Query("vendedorId") vendedorId: Long
+    ): Response<ChatConversacionResponse>
+
+    @GET("api/chat/conversaciones/{usuarioId}")
+    suspend fun listarConversacionesChat(
+        @Path("usuarioId") usuarioId: Long
+    ): Response<List<ChatConversacionResponse>>
+
+    @GET("api/chat/conversaciones/{conversacionId}/mensajes")
+    suspend fun listarMensajesChat(
+        @Path("conversacionId") conversacionId: Long
+    ): Response<List<ChatMensajeResponse>>
+
+    @POST("api/chat/conversaciones/{conversacionId}/mensajes")
+    suspend fun enviarMensajeChat(
+        @Path("conversacionId") conversacionId: Long,
+        @Body request: ChatMensajeRequest
+    ): Response<ChatMensajeResponse>
+
+    @PUT("api/chat/conversaciones/{conversacionId}/leer")
+    suspend fun marcarMensajesChatComoLeidos(
+        @Path("conversacionId") conversacionId: Long,
+        @Query("usuarioId") usuarioId: Long
+    ): Response<Unit>
 }

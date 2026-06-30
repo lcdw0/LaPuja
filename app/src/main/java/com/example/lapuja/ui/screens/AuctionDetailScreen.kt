@@ -501,12 +501,50 @@ fun AuctionDetailScreen(
 
                     Button(
                         onClick = {
-                            mensaje = "El chat con el vendedor se implementará en la siguiente funcionalidad."
+                            scope.launch {
+                                try {
+                                    val responseConversaciones =
+                                        RetrofitClient.api.listarConversacionesChat(usuarioId)
+
+                                    if (responseConversaciones.isSuccessful) {
+                                        val conversacionExistente = responseConversaciones.body()
+                                            ?.firstOrNull { it.subastaId == auction.id }
+
+                                        if (conversacionExistente?.id != null) {
+                                            navController.navigate("chat/${conversacionExistente.id}")
+                                            return@launch
+                                        }
+                                    }
+
+                                    val compradorId = auction.ganadorId
+                                    val vendedorId = auction.usuarioId
+
+                                    if (compradorId == null || vendedorId == null) {
+                                        mensaje = "No se pudo identificar al comprador o vendedor."
+                                        return@launch
+                                    }
+
+                                    val responseCrear = RetrofitClient.api.crearConversacionChat(
+                                        subastaId = auction.id,
+                                        compradorId = compradorId,
+                                        vendedorId = vendedorId
+                                    )
+
+                                    if (responseCrear.isSuccessful && responseCrear.body()?.id != null) {
+                                        navController.navigate("chat/${responseCrear.body()?.id}")
+                                    } else {
+                                        mensaje = "No se pudo crear la conversación."
+                                    }
+
+                                } catch (e: Exception) {
+                                    mensaje = "No se pudo conectar con la API."
+                                }
+                            }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Contactar vendedor")
+                        Text("💬 Contactar vendedor")
                     }
                 }
             }

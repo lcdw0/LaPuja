@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     prefs: SharedPreferences,
     deepLinkUri: Uri? = null
-){
+) {
     val navController = rememberNavController()
 
     LaunchedEffect(deepLinkUri) {
@@ -121,6 +121,7 @@ fun MainScreen(
                 currentRoute != "login" &&
                 currentRoute != "register" &&
                 currentRoute != "forgot_password" &&
+                currentRoute?.startsWith("chat/") != true &&
                 currentRoute?.startsWith("verify_email") != true &&
                 currentRoute?.startsWith("reset_password") != true &&
                 currentRoute != "notifications"
@@ -152,7 +153,8 @@ fun MainScreen(
                 currentRoute?.startsWith("reset_password") != true &&
                 currentRoute != "notifications" &&
                 currentRoute?.startsWith("auction_detail") != true &&
-                currentRoute?.startsWith("public_profile") != true
+                currentRoute?.startsWith("public_profile") != true &&
+                currentRoute?.startsWith("chat") != true
             ) {
                 BottomNav(navController = navController)
             }
@@ -384,6 +386,34 @@ fun MainScreen(
                     prefs = prefs,
                     navController = navController,
                     notificationViewModel = notificationViewModel
+                )
+            }
+
+            composable("chat_list") {
+                ChatListScreen(
+                    prefs = prefs,
+                    onChatClick = { conversacionId ->
+                        navController.navigate("chat/$conversacionId")
+                    }
+                )
+            }
+
+            composable(
+                route = "chat/{conversacionId}",
+                arguments = listOf(
+                    navArgument("conversacionId") {
+                        type = NavType.LongType
+                    }
+                )
+            ) { backStackEntry ->
+
+                val conversacionId =
+                    backStackEntry.arguments?.getLong("conversacionId") ?: 0L
+
+                ChatScreen(
+                    prefs = prefs,
+                    conversacionId = conversacionId,
+                    navController = navController
                 )
             }
 

@@ -402,7 +402,7 @@ fun AuctionScreen(
                 Column {
                     ImagenSubastaLista(
                         imagen = subasta.imagen,
-                        nombre = subasta.nombre
+                        nombre = subasta.nombre ?: "Subasta"
                     )
 
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -411,9 +411,9 @@ fun AuctionScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(subasta.nombre, fontSize = 24.sp)
+                                Text(subasta.nombre ?: "Sin nombre", fontSize = 24.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(subasta.categoria, color = Color.Gray)
+                                Text(subasta.categoria ?: "Sin categoría", color = Color.Gray)
                             }
 
                             Surface(
@@ -572,18 +572,18 @@ private fun SubastaResponse.toAuctionItem(
     estadoVisual: String
 ): AuctionItem {
     return AuctionItem(
-        nombre = nombre,
-        descripcion = descripcion,
+        nombre = nombre ?: "Sin nombre",
+        descripcion = descripcion ?: "Sin descripción",
         precioInicial = precioActual,
         imagen = 0,
-        categoria = categoria,
+        categoria = categoria ?: "Sin categoría",
         fechaInicio = fechaCreacion ?: "Hoy"
     ).apply {
         idApi = id
         precio = precioActual
         estado = estadoVisual
         ofertas = ofertas
-        ganador = ganador
+        ganador = ganador ?: "Nadie"
         iniciada = estadoVisual == "ACTIVA"
         tiempo = 0
     }

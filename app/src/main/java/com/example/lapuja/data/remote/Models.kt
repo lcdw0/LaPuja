@@ -234,3 +234,44 @@ data class ResetPasswordRequest(
     val nuevaPassword: String,
     val confirmarPassword: String
 )
+
+data class ChatConversacionResponse(
+    val id: Long?,
+    val subastaId: Long?,
+    val subastaTitulo: String?,
+    val compradorId: Long?,
+    val compradorNombre: String?,
+    val compradorFotoPerfil: String?,
+    val vendedorId: Long?,
+    val vendedorNombre: String?,
+    val vendedorFotoPerfil: String?,
+    val activo: Boolean?,
+    val fechaCreacion: String?,
+    val ultimoMensaje: String?,
+    val fechaUltimoMensaje: String?,
+    val mensajesNoLeidos: Long?,
+    val otroUsuarioEnLinea: Boolean?,
+    val otroUsuarioUltimaActividad: String?,
+    val otroUsuarioFotoPerfil: String?
+)
+
+data class ChatMensajeResponse(
+    val id: Long?,
+    val conversacionId: Long?,
+    val emisorId: Long?,
+    val emisorNombre: String?,
+    val contenido: String?,
+    val tipoMensaje: String?,
+    val imagenUrl: String?,
+    val leido: Boolean?,
+    val eliminado: Boolean?,
+    val fechaEnvio: String?,
+    val fechaEdicion: String?
+)
+
+data class ChatMensajeRequest(
+    val emisorId: Long,
+    val contenido: String? = null,
+    val tipoMensaje: String = "TEXTO",
+    val imagenUrl: String? = null
+)

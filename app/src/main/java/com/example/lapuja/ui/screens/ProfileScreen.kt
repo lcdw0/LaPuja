@@ -245,6 +245,33 @@ fun ProfileScreen(
             )
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(modifier = Modifier.fillMaxWidth()) {
+
+            ProfileOptionCard(
+                title = "Chats",
+                subtitle = "Conversaciones",
+                icon = "💬",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate("chat_list")
+                }
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            ProfileOptionCard(
+                title = "Notificaciones",
+                subtitle = "Centro de avisos",
+                icon = "🔔",
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate("notifications")
+                }
+            )
+        }
+
         Spacer(modifier = Modifier.height(22.dp))
 
         Button(

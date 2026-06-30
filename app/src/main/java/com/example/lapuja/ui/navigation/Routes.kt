@@ -16,4 +16,7 @@ object Routes {
     const val VERIFY_EMAIL = "verify_email"
     const val RESET_PASSWORD = "reset_password"
     const val FORGOT_PASSWORD = "forgot_password"
+
+    const val CHAT_LIST = "chat_list"
+    const val CHAT = "chat/{conversacionId}"
 }
