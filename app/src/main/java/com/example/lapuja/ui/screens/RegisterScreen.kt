@@ -248,7 +248,9 @@ fun RegisterScreen(
                                                 UsuarioRequest(
                                                     nombre = nombre,
                                                     correo = correo,
-                                                    password = password
+                                                    password = password,
+                                                    telefono = telefono,
+                                                    ciudad = ciudad
                                                 )
                                             )
 

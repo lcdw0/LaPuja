@@ -188,6 +188,16 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                TextButton(
+                    onClick = {
+                        navController.navigate("forgot_password")
+                    }
+                ) {
+                    Text("¿Olvidaste tu contraseña?")
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 OutlinedButton(
                     onClick = {
                         navController.navigate("register")

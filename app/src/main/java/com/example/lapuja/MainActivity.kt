@@ -30,6 +30,8 @@ import androidx.compose.material3.TopAppBar
 import com.example.lapuja.components.NotificationBell
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.lapuja.ui.notifications.NotificationViewModel
+import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
 
 class MainActivity : ComponentActivity() {
 
@@ -46,11 +48,16 @@ class MainActivity : ComponentActivity() {
                 .apply()
         }
 
+        val deepLinkUri = intent?.data
+
         enableEdgeToEdge()
 
         setContent {
             LaPujaTheme {
-                MainScreen(prefs = prefs)
+                MainScreen(
+                    prefs = prefs,
+                    deepLinkUri = deepLinkUri
+                )
             }
         }
     }
@@ -58,8 +65,31 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(prefs: SharedPreferences) {
+fun MainScreen(
+    prefs: SharedPreferences,
+    deepLinkUri: Uri? = null
+){
     val navController = rememberNavController()
+
+    LaunchedEffect(deepLinkUri) {
+        deepLinkUri?.let { uri ->
+            val token = uri.getQueryParameter("token")
+
+            when (uri.host) {
+                "verificar-correo" -> {
+                    if (!token.isNullOrBlank()) {
+                        navController.navigate("verify_email/$token")
+                    }
+                }
+
+                "recuperar-password" -> {
+                    if (!token.isNullOrBlank()) {
+                        navController.navigate("reset_password/$token")
+                    }
+                }
+            }
+        }
+    }
 
     val notificationViewModel: NotificationViewModel = viewModel()
 
@@ -90,6 +120,9 @@ fun MainScreen(prefs: SharedPreferences) {
             if (
                 currentRoute != "login" &&
                 currentRoute != "register" &&
+                currentRoute != "forgot_password" &&
+                currentRoute?.startsWith("verify_email") != true &&
+                currentRoute?.startsWith("reset_password") != true &&
                 currentRoute != "notifications"
             ) {
                 TopAppBar(
@@ -114,6 +147,10 @@ fun MainScreen(prefs: SharedPreferences) {
             if (
                 currentRoute != "login" &&
                 currentRoute != "register" &&
+                currentRoute != "forgot_password" &&
+                currentRoute?.startsWith("verify_email") != true &&
+                currentRoute?.startsWith("reset_password") != true &&
+                currentRoute != "notifications" &&
                 currentRoute?.startsWith("auction_detail") != true &&
                 currentRoute?.startsWith("public_profile") != true
             ) {
@@ -138,6 +175,38 @@ fun MainScreen(prefs: SharedPreferences) {
                 RegisterScreen(
                     navController = navController,
                     prefs = prefs
+                )
+            }
+
+            composable(
+                route = "verify_email/{token}",
+                arguments = listOf(
+                    navArgument("token") {
+                        type = NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                val token = backStackEntry.arguments?.getString("token") ?: ""
+
+                VerifyEmailScreen(
+                    token = token,
+                    navController = navController
+                )
+            }
+
+            composable(
+                route = "reset_password/{token}",
+                arguments = listOf(
+                    navArgument("token") {
+                        type = NavType.StringType
+                    }
+                )
+            ) { backStackEntry ->
+                val token = backStackEntry.arguments?.getString("token") ?: ""
+
+                ResetPasswordScreen(
+                    token = token,
+                    navController = navController
                 )
             }
 
@@ -315,6 +384,12 @@ fun MainScreen(prefs: SharedPreferences) {
                     prefs = prefs,
                     navController = navController,
                     notificationViewModel = notificationViewModel
+                )
+            }
+
+            composable("forgot_password") {
+                ForgotPasswordScreen(
+                    navController = navController
                 )
             }
         }

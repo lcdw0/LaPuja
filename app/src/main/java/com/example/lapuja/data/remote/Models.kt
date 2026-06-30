@@ -3,7 +3,9 @@ package com.example.lapuja.data.remote
 data class UsuarioRequest(
     val nombre: String,
     val correo: String,
-    val password: String
+    val password: String,
+    val telefono: String,
+    val ciudad: String
 )
 
 data class LoginRequest(
@@ -225,4 +227,10 @@ data class NotificacionesContadorResponse(
 data class NotificacionSimpleResponse(
     val ok: Boolean,
     val mensaje: String?
+)
+
+data class ResetPasswordRequest(
+    val token: String,
+    val nuevaPassword: String,
+    val confirmarPassword: String
 )

@@ -12,4 +12,8 @@ object Routes {
     const val PUBLIC_PROFILE = "public_profile"
     const val BID = "bid"
     const val NOTIFICATIONS = "notifications"
+
+    const val VERIFY_EMAIL = "verify_email"
+    const val RESET_PASSWORD = "reset_password"
+    const val FORGOT_PASSWORD = "forgot_password"
 }

@@ -234,4 +234,19 @@ interface ApiService {
     suspend fun eliminarNotificacion(
         @Path("id") id: Long
     ): Response<NotificacionSimpleResponse>
+
+    @GET("api/email/verificar")
+    suspend fun verificarCorreo(
+        @Query("token") token: String
+    ): Response<Map<String, Any>>
+
+    @POST("api/email/restablecer-password")
+    suspend fun restablecerPassword(
+        @Body request: ResetPasswordRequest
+    ): Response<Map<String, Any>>
+
+    @POST("api/email/solicitar-recuperacion")
+    suspend fun solicitarRecuperacion(
+        @Body request: Map<String, String>
+    ): Response<Map<String, Any>>
 }
