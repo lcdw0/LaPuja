@@ -225,18 +225,18 @@ fun MainScreen(
             }
 
             composable(
-                route = "reset_password/{token}",
+                route = "reset_password_codigo/{correo}",
                 arguments = listOf(
-                    navArgument("token") {
+                    navArgument("correo") {
                         type = NavType.StringType
                     }
                 )
             ) { backStackEntry ->
-                val token = backStackEntry.arguments?.getString("token") ?: ""
+                val correo = backStackEntry.arguments?.getString("correo") ?: ""
 
                 ResetPasswordScreen(
-                    token = token,
-                    navController = navController
+                    navController = navController,
+                    correoInicial = correo
                 )
             }
 

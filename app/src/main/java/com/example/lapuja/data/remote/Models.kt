@@ -238,7 +238,8 @@ data class NotificacionSimpleResponse(
 )
 
 data class ResetPasswordRequest(
-    val token: String,
+    val correo: String,
+    val codigo: String,
     val nuevaPassword: String,
     val confirmarPassword: String
 )

@@ -4,8 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,13 +31,16 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun ResetPasswordScreen(
-    token: String,
-    navController: NavController
+    navController: NavController,
+    correoInicial: String = ""
 ) {
     val scope = rememberCoroutineScope()
 
+    var correo by remember { mutableStateOf(correoInicial) }
+    var codigo by remember { mutableStateOf("") }
     var nuevaPassword by remember { mutableStateOf("") }
     var confirmarPassword by remember { mutableStateOf("") }
+
     var cargando by remember { mutableStateOf(false) }
     var mensaje by remember { mutableStateOf("") }
     var ok by remember { mutableStateOf(false) }
@@ -52,26 +57,73 @@ fun ResetPasswordScreen(
             style = MaterialTheme.typography.headlineSmall
         )
 
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Ingresa el código que recibiste en tu correo.",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
+            value = correo,
+            onValueChange = {
+                correo = it
+                mensaje = ""
+            },
+            label = { Text("Correo") },
+            singleLine = true,
+            enabled = !cargando && !ok,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = codigo,
+            onValueChange = {
+                codigo = it.filter { c -> c.isDigit() }.take(6)
+                mensaje = ""
+            },
+            label = { Text("Código de recuperación") },
+            singleLine = true,
+            enabled = !cargando && !ok,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
             value = nuevaPassword,
-            onValueChange = { nuevaPassword = it },
+            onValueChange = {
+                nuevaPassword = it
+                mensaje = ""
+            },
             label = { Text("Nueva contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
-            enabled = !cargando && !ok
+            enabled = !cargando && !ok,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
             value = confirmarPassword,
-            onValueChange = { confirmarPassword = it },
+            onValueChange = {
+                confirmarPassword = it
+                mensaje = ""
+            },
             label = { Text("Confirmar contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true,
-            enabled = !cargando && !ok
+            enabled = !cargando && !ok,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -81,8 +133,22 @@ fun ResetPasswordScreen(
         } else {
             Button(
                 enabled = !ok,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
                 onClick = {
                     when {
+                        correo.isBlank() -> {
+                            mensaje = "El correo es obligatorio"
+                        }
+
+                        codigo.isBlank() -> {
+                            mensaje = "El código es obligatorio"
+                        }
+
+                        codigo.length != 6 -> {
+                            mensaje = "El código debe tener 6 dígitos"
+                        }
+
                         nuevaPassword.isBlank() -> {
                             mensaje = "La nueva contraseña es obligatoria"
                         }
@@ -107,7 +173,8 @@ fun ResetPasswordScreen(
                                 try {
                                     val response = RetrofitClient.api.restablecerPassword(
                                         ResetPasswordRequest(
-                                            token = token,
+                                            correo = correo,
+                                            codigo = codigo,
                                             nuevaPassword = nuevaPassword,
                                             confirmarPassword = confirmarPassword
                                         )

@@ -246,12 +246,12 @@ interface ApiService {
         @Query("token") token: String
     ): Response<Map<String, Any>>
 
-    @POST("api/email/restablecer-password")
+    @POST("api/usuarios/restablecer-password")
     suspend fun restablecerPassword(
         @Body request: ResetPasswordRequest
     ): Response<Map<String, Any>>
 
-    @POST("api/email/solicitar-recuperacion")
+    @POST("api/usuarios/solicitar-recuperacion")
     suspend fun solicitarRecuperacion(
         @Body request: Map<String, String>
     ): Response<Map<String, Any>>

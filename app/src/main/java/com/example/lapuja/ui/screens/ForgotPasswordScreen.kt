@@ -1,23 +1,9 @@
 package com.example.lapuja.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,7 +20,6 @@ fun ForgotPasswordScreen(
     var correo by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
     var mensaje by remember { mutableStateOf("") }
-    var enviado by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -51,7 +36,7 @@ fun ForgotPasswordScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.",
+            text = "Ingresa tu correo y te enviaremos un código de 6 dígitos.",
             style = MaterialTheme.typography.bodyMedium
         )
 
@@ -59,10 +44,15 @@ fun ForgotPasswordScreen(
 
         OutlinedTextField(
             value = correo,
-            onValueChange = { correo = it },
+            onValueChange = {
+                correo = it
+                mensaje = ""
+            },
             label = { Text("Correo electrónico") },
             singleLine = true,
-            enabled = !cargando && !enviado
+            enabled = !cargando,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
         )
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -71,10 +61,16 @@ fun ForgotPasswordScreen(
             CircularProgressIndicator()
         } else {
             Button(
-                enabled = !enviado,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
                 onClick = {
                     if (correo.isBlank()) {
                         mensaje = "El correo es obligatorio"
+                        return@Button
+                    }
+
+                    if (!correo.contains("@")) {
+                        mensaje = "Ingresa un correo válido"
                         return@Button
                     }
 
@@ -93,12 +89,14 @@ fun ForgotPasswordScreen(
 
                                 mensaje = body?.get("mensaje")?.toString()
                                     ?: if (ok) {
-                                        "Correo de recuperación enviado correctamente"
+                                        "Código enviado correctamente"
                                     } else {
-                                        "No se pudo enviar el correo de recuperación"
+                                        "No se pudo enviar el código"
                                     }
 
-                                enviado = ok
+                                if (ok) {
+                                    navController.navigate("reset_password_codigo/${correo}")
+                                }
                             } else {
                                 mensaje = "Error al solicitar recuperación"
                             }
@@ -110,7 +108,7 @@ fun ForgotPasswordScreen(
                     }
                 }
             ) {
-                Text("Enviar enlace")
+                Text("Enviar código")
             }
         }
 
