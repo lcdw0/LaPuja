@@ -18,11 +18,15 @@ import com.example.lapuja.data.model.dashboard.DashboardGraficaItemResponse
 import com.example.lapuja.data.model.dashboard.DashboardResumenResponse
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.navigation.NavController
+import com.example.lapuja.ui.navigation.Routes
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     usuarioId: Long,
+    navController: NavController,
     viewModel: DashboardViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -89,7 +93,10 @@ fun DashboardScreen(
 
                         uiState.resumen?.let { resumen ->
                             item {
-                                DashboardStatsGrid(resumen)
+                                DashboardStatsGrid(
+                                    resumen = resumen,
+                                    navController = navController
+                                )
                             }
                         }
 
@@ -346,11 +353,13 @@ private fun DashboardError(
 
 @Composable
 private fun DashboardStatsGrid(
-    resumen: DashboardResumenResponse
+    resumen: DashboardResumenResponse,
+    navController: NavController
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
@@ -360,7 +369,10 @@ private fun DashboardStatsGrid(
                 titulo = "Subastas",
                 valor = resumen.totalSubastasCreadas.toString(),
                 detalle = "Creadas",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate(Routes.MY_AUCTIONS)
+                }
             )
 
             DashboardStatCard(
@@ -368,7 +380,10 @@ private fun DashboardStatsGrid(
                 titulo = "Pujas",
                 valor = resumen.totalPujasRealizadas.toString(),
                 detalle = "Realizadas",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate(Routes.MY_BIDS)
+                }
             )
         }
 
@@ -381,7 +396,10 @@ private fun DashboardStatsGrid(
                 titulo = "Ganadas",
                 valor = resumen.subastasGanadas.toString(),
                 detalle = "Como comprador",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate("history")
+                }
             )
 
             DashboardStatCard(
@@ -402,7 +420,10 @@ private fun DashboardStatsGrid(
                 titulo = "Gastado",
                 valor = formatearCordobas(resumen.dineroGastado),
                 detalle = "Compras",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate(Routes.WALLET)
+                }
             )
 
             DashboardStatCard(
@@ -410,7 +431,10 @@ private fun DashboardStatsGrid(
                 titulo = "Ganado",
                 valor = formatearCordobas(resumen.dineroGanado),
                 detalle = "Ventas",
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onClick = {
+                    navController.navigate(Routes.WALLET)
+                }
             )
         }
 
@@ -427,6 +451,7 @@ private fun DashboardStatsGrid(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+
                 Column {
                     Text(
                         text = "Porcentaje de victorias",
@@ -457,10 +482,14 @@ private fun DashboardStatCard(
     titulo: String,
     valor: String,
     detalle: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable { onClick() }
+            else Modifier
+        ),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )

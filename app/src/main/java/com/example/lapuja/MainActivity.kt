@@ -32,6 +32,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.lapuja.ui.notifications.NotificationViewModel
 import android.net.Uri
 import androidx.compose.runtime.LaunchedEffect
+import com.example.lapuja.ui.navigation.Routes
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 
 class MainActivity : ComponentActivity() {
 
@@ -129,11 +135,33 @@ fun MainScreen(
                 TopAppBar(
                     title = { Text("LaPuja") },
                     actions = {
+                        IconButton(
+                            onClick = {
+                                navController.navigate("chat_list")
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Email,
+                                contentDescription = "Mensajes"
+                            )
+                        }
+
                         NotificationBell(
                             prefs = prefs,
                             navController = navController,
                             notificationViewModel = notificationViewModel
                         )
+
+                        IconButton(
+                            onClick = {
+                                navController.navigate("profile")
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AccountCircle,
+                                contentDescription = "Perfil"
+                            )
+                        }
                     }
                 )
             }
@@ -278,6 +306,13 @@ fun MainScreen(
                 )
             }
 
+            composable(Routes.WALLET) {
+                WalletScreen(
+                    prefs = prefs,
+                    navController = navController
+                )
+            }
+
             composable("edit_profile") {
                 EditProfileScreen(
                     prefs = prefs,
@@ -360,7 +395,8 @@ fun MainScreen(
                 val usuarioId = obtenerUsuarioIdDesdePrefs(prefs)
 
                 DashboardScreen(
-                    usuarioId = usuarioId
+                    usuarioId = usuarioId,
+                    navController = navController
                 )
             }
 

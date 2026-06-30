@@ -2,9 +2,11 @@ package com.example.lapuja.data.remote
 
 data class UsuarioRequest(
     val nombre: String,
+    val apellidos: String,
     val correo: String,
     val password: String,
     val telefono: String,
+    val pais: String,
     val ciudad: String
 )
 
@@ -15,12 +17,14 @@ data class LoginRequest(
 
 data class UsuarioUpdateRequest(
     val nombre: String,
+    val apellidos: String?,
     val correo: String,
     val passwordActual: String?,
     val password: String?,
     val confirmarPassword: String?,
     val fotoPerfil: String?,
     val telefono: String?,
+    val pais: String?,
     val ciudad: String?,
     val biografia: String?
 )
@@ -30,9 +34,11 @@ data class UsuarioResponse(
     val mensaje: String? = null,
     val id: Long?,
     val nombre: String?,
+    val apellidos: String?,
     val correo: String?,
     val fotoPerfil: String?,
     val telefono: String?,
+    val pais: String?,
     val ciudad: String?,
     val biografia: String?,
     val fechaRegistro: String?
@@ -182,7 +188,9 @@ data class PerfilPublicoResponse(
     val mensaje: String?,
     val id: Long?,
     val nombre: String?,
+    val apellidos: String?,
     val fotoPerfil: String?,
+    val pais: String?,
     val ciudad: String?,
     val biografia: String?,
     val fechaRegistro: String?,

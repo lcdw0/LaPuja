@@ -21,6 +21,8 @@ import com.example.lapuja.data.remote.SubastaResponse
 import com.example.lapuja.ui.components.AppImage
 import com.example.lapuja.ui.components.AppProfileImage
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextAlign
+import com.example.lapuja.utils.nombreCompleto
 
 @Composable
 fun PublicProfileScreen(
@@ -234,8 +236,15 @@ fun PublicProfileHeader(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = vendedor.nombre ?: "Vendedor",
-                fontSize = 28.sp
+                text = nombreCompleto(
+                    vendedor.nombre,
+                    vendedor.apellidos
+                ),
+                fontSize = 28.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                lineHeight = 32.sp,
+                maxLines = 2
             )
 
             Spacer(modifier = Modifier.height(4.dp))

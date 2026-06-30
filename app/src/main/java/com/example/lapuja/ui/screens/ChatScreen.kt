@@ -1,14 +1,21 @@
 package com.example.lapuja.ui.screens
 
 import android.content.SharedPreferences
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,30 +23,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavController
 import com.example.lapuja.data.remote.ChatConversacionResponse
 import com.example.lapuja.data.remote.ChatMensajeRequest
 import com.example.lapuja.data.remote.ChatMensajeResponse
 import com.example.lapuja.data.remote.RetrofitClient
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
-import androidx.compose.foundation.clickable
-import androidx.navigation.NavController
 import com.example.lapuja.data.remote.SubastaResponse
 import com.example.lapuja.ui.components.AppImage
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
+import com.example.lapuja.ui.components.AppProfileImage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
-import com.example.lapuja.ui.components.AppProfileImage
-import androidx.compose.ui.window.Dialog
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @Composable
 fun ChatScreen(
@@ -50,7 +53,6 @@ fun ChatScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val usuarioId = prefs.getLong("usuarioId", 0L)
-
     val context = LocalContext.current
 
     var conversacion by remember { mutableStateOf<ChatConversacionResponse?>(null) }
@@ -184,7 +186,6 @@ fun ChatScreen(
                     } else {
                         mensajeError = uploadResponse.body()?.mensaje ?: "No se pudo subir la imagen."
                     }
-
                 } catch (e: Exception) {
                     mensajeError = "No se pudo seleccionar o subir la imagen."
                 } finally {
@@ -213,6 +214,14 @@ fun ChatScreen(
         }
     } ?: "Chat"
 
+    val otroUsuarioId = conversacion?.let {
+        if (usuarioId == it.compradorId) {
+            it.vendedorId
+        } else {
+            it.compradorId
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -236,6 +245,11 @@ fun ChatScreen(
                     popUpTo("chat_list") {
                         inclusive = false
                     }
+                }
+            },
+            onVerPerfil = {
+                otroUsuarioId?.let {
+                    navController.navigate("public_profile/$it")
                 }
             }
         )
@@ -314,7 +328,8 @@ private fun ChatHeader(
     fotoPerfil: String?,
     subasta: String,
     enLinea: Boolean,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onVerPerfil: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -322,14 +337,15 @@ private fun ChatHeader(
             .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "‹",
-            color = Color.White,
-            fontSize = 38.sp,
-            modifier = Modifier
-                .padding(end = 10.dp)
-                .clickable { onBackClick() }
-        )
+        IconButton(
+            onClick = onBackClick
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Regresar",
+                tint = Color.White
+            )
+        }
 
         AppProfileImage(
             imageUrl = fotoPerfil,
@@ -354,7 +370,50 @@ private fun ChatHeader(
             )
         }
 
-        Text("⋮", color = Color.White, fontSize = 30.sp)
+        var menuExpanded by remember { mutableStateOf(false) }
+
+        Box {
+            IconButton(
+                onClick = {
+                    menuExpanded = true
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Opciones",
+                    tint = Color.White
+                )
+            }
+
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = {
+                    menuExpanded = false
+                }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Ver perfil") },
+                    onClick = {
+                        menuExpanded = false
+                        onVerPerfil()
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Reportar usuario (Próximamente)") },
+                    onClick = {
+                        menuExpanded = false
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Bloquear usuario (Próximamente)") },
+                    onClick = {
+                        menuExpanded = false
+                    }
+                )
+            }
+        }
     }
 
     Text(
@@ -608,7 +667,11 @@ private fun ChatInputBar(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    Text("+", color = Color.White, fontSize = 28.sp)
+                    Text(
+                        text = "🖼️",
+                        fontSize = 22.sp,
+                        color = Color.White
+                    )
                 }
             }
 

@@ -21,6 +21,7 @@ import com.example.lapuja.data.remote.MetodoPagoResponse
 import com.example.lapuja.data.remote.RecargaRequest
 import com.example.lapuja.data.remote.RetrofitClient
 import kotlinx.coroutines.launch
+import com.example.lapuja.utils.formatearCordobasDecimal
 
 @Composable
 fun RechargeWalletScreen(
@@ -314,6 +315,8 @@ fun QuickAmountButton(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp)
     ) {
-        Text("C$$text")
+        Text(
+            formatearCordobasDecimal(text.toDouble())
+        )
     }
 }

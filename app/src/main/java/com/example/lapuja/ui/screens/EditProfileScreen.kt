@@ -39,6 +39,13 @@ fun EditProfileScreen(
     val usuarioId = prefs.getLong("usuarioId", 0L)
 
     var nombre by remember { mutableStateOf(prefs.getString("nombre", "") ?: "") }
+    var apellidos by remember {
+        mutableStateOf(prefs.getString("apellidos", "") ?: "")
+    }
+
+    var pais by remember {
+        mutableStateOf(prefs.getString("pais", "Nicaragua") ?: "Nicaragua")
+    }
     var correo by remember { mutableStateOf(prefs.getString("correo", "") ?: "") }
     var telefono by remember { mutableStateOf(prefs.getString("telefono", "") ?: "") }
     var ciudad by remember { mutableStateOf(prefs.getString("ciudad", "") ?: "") }
@@ -52,6 +59,23 @@ fun EditProfileScreen(
     var imagenNuevaUri by remember { mutableStateOf<Uri?>(null) }
     var mensaje by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
+
+    val paisesCiudades = mapOf(
+        "Nicaragua" to listOf("Managua", "León", "Granada", "Masaya", "Chinandega", "Estelí", "Matagalpa"),
+        "Costa Rica" to listOf("San José", "Alajuela", "Cartago", "Heredia", "Puntarenas", "Limón"),
+        "Honduras" to listOf("Tegucigalpa", "San Pedro Sula", "La Ceiba", "Choloma", "Comayagua"),
+        "El Salvador" to listOf("San Salvador", "Santa Ana", "San Miguel", "Soyapango"),
+        "Guatemala" to listOf("Ciudad de Guatemala", "Quetzaltenango", "Escuintla", "Mixco"),
+        "Panamá" to listOf("Ciudad de Panamá", "Colón", "David", "La Chorrera")
+    )
+
+    val ciudadesDisponibles = paisesCiudades[pais] ?: emptyList()
+
+    LaunchedEffect(pais) {
+        if (ciudad.isBlank() || ciudad !in ciudadesDisponibles) {
+            ciudad = ciudadesDisponibles.firstOrNull() ?: ""
+        }
+    }
 
     fun crearParteImagen(context: Context, uri: Uri): MultipartBody.Part? {
         return try {
@@ -134,6 +158,19 @@ fun EditProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         OutlinedTextField(
+            value = apellidos,
+            onValueChange = {
+                apellidos = it
+                mensaje = ""
+            },
+            label = { Text("Apellidos") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
             value = correo,
             onValueChange = {
                 correo = it
@@ -160,15 +197,26 @@ fun EditProfileScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        OutlinedTextField(
+        SimpleDropdownField(
+            label = "País",
+            value = pais,
+            options = paisesCiudades.keys.toList(),
+            onValueChange = {
+                pais = it
+                mensaje = ""
+            }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SimpleDropdownField(
+            label = "Ciudad",
             value = ciudad,
+            options = ciudadesDisponibles,
             onValueChange = {
                 ciudad = it
                 mensaje = ""
-            },
-            label = { Text("Ciudad") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp)
+            }
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -303,6 +351,11 @@ fun EditProfileScreen(
                     }
                 }
 
+                if (!telefonoValidoPorPais(telefono, pais)) {
+                    mensaje = "Ingresa un teléfono válido para $pais"
+                    return@Button
+                }
+
                 cargando = true
                 mensaje = ""
 
@@ -340,12 +393,14 @@ fun EditProfileScreen(
                             id = usuarioId,
                             request = UsuarioUpdateRequest(
                                 nombre = nombre,
+                                apellidos = apellidos,
                                 correo = correo,
                                 passwordActual = if (quiereCambiarPassword) passwordActual else null,
                                 password = if (quiereCambiarPassword) passwordNueva else null,
                                 confirmarPassword = if (quiereCambiarPassword) confirmarPassword else null,
                                 fotoPerfil = fotoFinal,
                                 telefono = telefono,
+                                pais = pais,
                                 ciudad = ciudad,
                                 biografia = biografia
                             )
@@ -363,6 +418,8 @@ fun EditProfileScreen(
                                     .putString("ciudad", usuario.ciudad ?: ciudad)
                                     .putString("biografia", usuario.biografia ?: biografia)
                                     .putString("fechaRegistro", usuario.fechaRegistro ?: "")
+                                    .putString("apellidos", usuario.apellidos ?: apellidos)
+                                    .putString("pais", usuario.pais ?: pais)
                                     .apply()
 
                                 fotoPerfil = usuario.fotoPerfil ?: fotoFinal

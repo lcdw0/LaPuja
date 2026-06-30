@@ -222,19 +222,37 @@ fun CategoryCard(
     texto: String,
     onClick: () -> Unit
 ) {
+    val partes = texto.split("\n")
+    val emoji = partes.getOrNull(0) ?: "📦"
+    val categoria = partes.getOrNull(1) ?: texto
+
     Card(
         shape = RoundedCornerShape(20.dp),
         modifier = Modifier
-            .size(115.dp)
+            .width(125.dp)
+            .height(115.dp)
             .clickable { onClick() }
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = texto,
-                fontSize = 17.sp
+                text = emoji,
+                fontSize = 28.sp
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = categoria,
+                fontSize = 14.sp,
+                maxLines = 2,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

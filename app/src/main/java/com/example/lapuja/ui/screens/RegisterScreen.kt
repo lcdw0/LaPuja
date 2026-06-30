@@ -20,7 +20,14 @@ import androidx.navigation.NavController
 import com.example.lapuja.data.remote.RetrofitClient
 import com.example.lapuja.data.remote.UsuarioRequest
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     navController: NavController,
@@ -29,6 +36,8 @@ fun RegisterScreen(
     val scope = rememberCoroutineScope()
 
     var nombre by remember { mutableStateOf("") }
+    var apellidos by remember { mutableStateOf("") }
+    var pais by remember { mutableStateOf("Nicaragua") }
     var correo by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var ciudad by remember { mutableStateOf("") }
@@ -37,6 +46,22 @@ fun RegisterScreen(
     var mostrarPassword by remember { mutableStateOf(false) }
     var mensaje by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
+
+    val paisesCiudades = mapOf(
+        "Nicaragua" to listOf("Managua", "León", "Granada", "Masaya", "Chinandega", "Estelí", "Matagalpa"),
+        "Costa Rica" to listOf("San José", "Alajuela", "Cartago", "Heredia", "Puntarenas", "Limón"),
+        "Honduras" to listOf("Tegucigalpa", "San Pedro Sula", "La Ceiba", "Choloma", "Comayagua"),
+        "El Salvador" to listOf("San Salvador", "Santa Ana", "San Miguel", "Soyapango"),
+        "Guatemala" to listOf("Ciudad de Guatemala", "Quetzaltenango", "Escuintla", "Mixco"),
+        "Panamá" to listOf("Ciudad de Panamá", "Colón", "David", "La Chorrera")
+    )
+
+    val ciudadesDisponibles = paisesCiudades[pais] ?: emptyList()
+
+    LaunchedEffect(pais) {
+        ciudad = ciudadesDisponibles.firstOrNull() ?: ""
+    }
+
 
     Box(
         modifier = Modifier
@@ -103,9 +128,20 @@ fun RegisterScreen(
                                 nombre = it
                                 mensaje = ""
                             },
-                            label = {
-                                Text("Nombre completo")
+                            label = { Text("Nombres") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = apellidos,
+                            onValueChange = {
+                                apellidos = it
+                                mensaje = ""
                             },
+                            label = { Text("Apellidos") },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         )
@@ -130,29 +166,37 @@ fun RegisterScreen(
                         OutlinedTextField(
                             value = telefono,
                             onValueChange = {
-                                telefono = it
+                                telefono = it.filter { char -> char.isDigit() || char == '-' || char == ' ' }
                                 mensaje = ""
                             },
-                            label = {
-                                Text("Teléfono")
-                            },
+                            label = { Text("Teléfono") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
 
-                        OutlinedTextField(
+                        SimpleDropdownField(
+                            label = "País",
+                            value = pais,
+                            options = paisesCiudades.keys.toList(),
+                            onValueChange = {
+                                pais = it
+                                mensaje = ""
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        SimpleDropdownField(
+                            label = "Ciudad",
                             value = ciudad,
+                            options = ciudadesDisponibles,
                             onValueChange = {
                                 ciudad = it
                                 mensaje = ""
-                            },
-                            label = {
-                                Text("Ciudad")
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp)
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -218,8 +262,10 @@ fun RegisterScreen(
                             onClick = {
                                 if (
                                     nombre.isBlank() ||
+                                    apellidos.isBlank() ||
                                     correo.isBlank() ||
                                     telefono.isBlank() ||
+                                    pais.isBlank() ||
                                     ciudad.isBlank() ||
                                     password.isBlank() ||
                                     confirmarPassword.isBlank()
@@ -230,6 +276,11 @@ fun RegisterScreen(
 
                                 if (!correo.contains("@")) {
                                     mensaje = "Ingresá un correo válido"
+                                    return@Button
+                                }
+
+                                if (!telefonoValidoPorPais(telefono, pais)) {
+                                    mensaje = "Ingresá un teléfono válido para $pais"
                                     return@Button
                                 }
 
@@ -247,9 +298,11 @@ fun RegisterScreen(
                                             RetrofitClient.api.registrarUsuario(
                                                 UsuarioRequest(
                                                     nombre = nombre,
+                                                    apellidos = apellidos,
                                                     correo = correo,
                                                     password = password,
                                                     telefono = telefono,
+                                                    pais = pais,
                                                     ciudad = ciudad
                                                 )
                                             )
@@ -305,5 +358,68 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SimpleDropdownField(
+    label: String,
+    value: String,
+    options: List<String>,
+    onValueChange: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            modifier = Modifier
+                .menuAnchor()
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        onValueChange(option)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+fun telefonoValidoPorPais(
+    telefono: String,
+    pais: String
+): Boolean {
+    val limpio = telefono.replace(" ", "").replace("-", "")
+
+    return when (pais) {
+        "Nicaragua", "Costa Rica", "Honduras", "El Salvador", "Panamá" ->
+            limpio.length == 8 && limpio.all { it.isDigit() }
+
+        "Guatemala" ->
+            limpio.length == 8 && limpio.all { it.isDigit() }
+
+        else ->
+            limpio.length >= 7 && limpio.all { it.isDigit() }
     }
 }

@@ -20,7 +20,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.lapuja.data.remote.RetrofitClient
 import com.example.lapuja.ui.components.AppProfileImage
+import com.example.lapuja.ui.navigation.Routes
+import com.example.lapuja.utils.formatearCordobasDecimal
 import kotlinx.coroutines.launch
+import com.example.lapuja.utils.nombreCompleto
 
 @Composable
 fun ProfileScreen(
@@ -31,6 +34,7 @@ fun ProfileScreen(
     val usuarioId = prefs.getLong("usuarioId", 0L)
 
     var nombre by remember { mutableStateOf(prefs.getString("nombre", "Usuario LaPuja") ?: "Usuario LaPuja") }
+    var apellidos by remember { mutableStateOf(prefs.getString("apellidos", "") ?: "") }
     var correo by remember { mutableStateOf(prefs.getString("correo", "Sin correo") ?: "Sin correo") }
     var saldo by remember { mutableStateOf(prefs.getFloat("saldo", 10000f)) }
     var saldoRetenido by remember { mutableStateOf(0.0) }
@@ -41,21 +45,17 @@ fun ProfileScreen(
     var biografia by remember { mutableStateOf(prefs.getString("biografia", "") ?: "") }
     var fechaRegistro by remember { mutableStateOf(prefs.getString("fechaRegistro", "") ?: "") }
 
-    var totalSubastas by remember { mutableStateOf(0) }
-    var totalPujas by remember { mutableStateOf(0) }
-    var totalGanadas by remember { mutableStateOf(0) }
-
     LaunchedEffect(Unit) {
         scope.launch {
             try {
                 if (usuarioId != 0L) {
-
                     val responseUsuario = RetrofitClient.api.obtenerUsuario(usuarioId)
 
                     if (responseUsuario.isSuccessful && responseUsuario.body()?.ok == true) {
                         val usuario = responseUsuario.body()!!
 
                         nombre = usuario.nombre ?: nombre
+                        apellidos = usuario.apellidos ?: ""
                         correo = usuario.correo ?: correo
                         fotoPerfil = usuario.fotoPerfil
                         telefono = usuario.telefono ?: ""
@@ -65,6 +65,7 @@ fun ProfileScreen(
 
                         prefs.edit()
                             .putString("nombre", nombre)
+                            .putString("apellidos", apellidos)
                             .putString("correo", correo)
                             .putString("fotoPerfil", fotoPerfil ?: "")
                             .putString("telefono", telefono)
@@ -74,41 +75,20 @@ fun ProfileScreen(
                             .apply()
                     }
 
-                    RetrofitClient.api.obtenerSaldo(usuarioId).let {
-                        if (it.isSuccessful && it.body()?.ok == true) {
-                            val nuevoSaldo = it.body()?.saldo ?: saldo.toDouble()
-                            saldo = nuevoSaldo.toFloat()
-                            prefs.edit().putFloat("saldo", nuevoSaldo.toFloat()).apply()
-                        }
+                    val responseSaldo = RetrofitClient.api.obtenerSaldo(usuarioId)
+                    if (responseSaldo.isSuccessful && responseSaldo.body()?.ok == true) {
+                        val nuevoSaldo = responseSaldo.body()?.saldo ?: saldo.toDouble()
+                        saldo = nuevoSaldo.toFloat()
+                        prefs.edit().putFloat("saldo", nuevoSaldo.toFloat()).apply()
                     }
 
-                    RetrofitClient.api.obtenerSaldoRetenido(usuarioId).let {
-                        if (it.isSuccessful && it.body()?.ok == true) {
-                            saldoRetenido = it.body()?.totalRetenido ?: 0.0
-                        }
-                    }
-
-                    val subastasUsuario = RetrofitClient.api.listarSubastasPorUsuario(usuarioId)
-                    if (subastasUsuario.isSuccessful) {
-                        totalSubastas = subastasUsuario.body()?.size ?: 0
-                    }
-
-                    val pujasUsuario = RetrofitClient.api.listarPujasPorUsuario(usuarioId)
-                    if (pujasUsuario.isSuccessful) {
-                        totalPujas = pujasUsuario.body()?.size ?: 0
-                    }
-
-                    val todasSubastas = RetrofitClient.api.listarSubastas()
-                    if (todasSubastas.isSuccessful) {
-                        totalGanadas = todasSubastas.body()
-                            ?.count { it.ganadorId == usuarioId && it.estado == "FINALIZADA" }
-                            ?: 0
+                    val responseRetenido = RetrofitClient.api.obtenerSaldoRetenido(usuarioId)
+                    if (responseRetenido.isSuccessful && responseRetenido.body()?.ok == true) {
+                        saldoRetenido = responseRetenido.body()?.totalRetenido ?: 0.0
                     }
                 }
             } catch (e: Exception) {
-                totalSubastas = 0
-                totalPujas = 0
-                totalGanadas = 0
+                saldoRetenido = 0.0
             }
         }
     }
@@ -156,7 +136,11 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text(nombre, fontSize = 25.sp, color = Color.White)
+        Text(
+            text = nombreCompleto(nombre, apellidos),
+            fontSize = 25.sp,
+            color = Color.White
+        )
         Text(correo, fontSize = 16.sp, color = Color.LightGray)
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -178,20 +162,10 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        ProfileStatsRow(
-            subastas = totalSubastas,
-            pujas = totalPujas,
-            ganadas = totalGanadas
-        )
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        WalletCard(
+        WalletSummaryCard(
             saldo = saldo,
             saldoRetenido = saldoRetenido,
-            onAddBalance = { navController.navigate("recharge_wallet") },
-            onHistory = { navController.navigate("wallet_history") },
-            onHeldFunds = { navController.navigate("held_funds") }
+            onOpenWallet = { navController.navigate(Routes.WALLET) }
         )
 
         Spacer(modifier = Modifier.height(18.dp))
@@ -202,6 +176,16 @@ fun ProfileScreen(
         )
 
         Spacer(modifier = Modifier.height(18.dp))
+
+        ProfileOptionCard(
+            title = "Mi actividad",
+            subtitle = "Ver estadísticas, gráficas y resumen general",
+            icon = "📊",
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { navController.navigate(Routes.DASHBOARD) }
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
             ProfileOptionCard(
@@ -238,7 +222,7 @@ fun ProfileScreen(
 
             ProfileOptionCard(
                 title = "Pagos",
-                subtitle = "Wallet y tarjetas",
+                subtitle = "Métodos de pago",
                 icon = "💳",
                 modifier = Modifier.weight(1f),
                 onClick = { navController.navigate("payment_methods") }
@@ -248,27 +232,22 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
-
             ProfileOptionCard(
                 title = "Chats",
                 subtitle = "Conversaciones",
                 icon = "💬",
                 modifier = Modifier.weight(1f),
-                onClick = {
-                    navController.navigate("chat_list")
-                }
+                onClick = { navController.navigate(Routes.CHAT_LIST) }
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             ProfileOptionCard(
-                title = "Notificaciones",
-                subtitle = "Centro de avisos",
+                title = "Avisos",
+                subtitle = "Notificaciones",
                 icon = "🔔",
                 modifier = Modifier.weight(1f),
-                onClick = {
-                    navController.navigate("notifications")
-                }
+                onClick = { navController.navigate(Routes.NOTIFICATIONS) }
             )
         }
 
@@ -277,8 +256,7 @@ fun ProfileScreen(
         Button(
             onClick = {
                 prefs.edit().clear().apply()
-
-                navController.navigate("login") {
+                navController.navigate(Routes.LOGIN) {
                     popUpTo(0)
                 }
             },
@@ -296,93 +274,56 @@ fun ProfileScreen(
 }
 
 @Composable
-fun WalletCard(
+fun WalletSummaryCard(
     saldo: Float,
     saldoRetenido: Double,
-    onAddBalance: () -> Unit,
-    onHistory: () -> Unit,
-    onHeldFunds: () -> Unit
+    onOpenWallet: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenWallet() },
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color.White.copy(alpha = 0.13f)
         )
     ) {
         Column(modifier = Modifier.padding(22.dp)) {
-            Text("💳 Wallet LaPuja", color = Color.White, fontSize = 20.sp)
+            Text("💳 Resumen Wallet", color = Color.White, fontSize = 20.sp)
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            Text("Saldo disponible", color = Color.LightGray, fontSize = 16.sp)
-
-            Text(
-                text = "$${String.format("%.2f", saldo)}",
-                color = Color.White,
-                fontSize = 40.sp
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Text("Saldo retenido", color = Color.LightGray, fontSize = 15.sp)
-
-            Text(
-                text = "$${String.format("%.2f", saldoRetenido)}",
-                color = Color(0xFFFFD166),
-                fontSize = 26.sp
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
             Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = onAddBalance,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                ) {
-                    Text("+ Agregar")
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Disponible", color = Color.LightGray, fontSize = 14.sp)
+                    Text(
+                        text = formatearCordobasDecimal(saldo.toDouble()),
+                        color = Color.White,
+                        fontSize = 27.sp
+                    )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
-
-                OutlinedButton(
-                    onClick = onHistory,
+                Column(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    horizontalAlignment = Alignment.End
                 ) {
-                    Text("Historial")
+                    Text("Retenido", color = Color.LightGray, fontSize = 14.sp)
+                    Text(
+                        text = formatearCordobasDecimal(saldoRetenido),
+                        color = Color(0xFFFFD166),
+                        fontSize = 27.sp
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            OutlinedButton(
-                onClick = onHeldFunds,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-            ) {
-                Text("Ver saldo retenido")
-            }
+            Text(
+                text = "Tocar para administrar wallet",
+                color = Color.LightGray,
+                fontSize = 14.sp
+            )
         }
-    }
-}
-
-@Composable
-fun ProfileStatsRow(
-    subastas: Int,
-    pujas: Int,
-    ganadas: Int
-) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        StatCard(subastas.toString(), "Subastas", Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(10.dp))
-        StatCard(pujas.toString(), "Pujas", Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(10.dp))
-        StatCard(ganadas.toString(), "Ganadas", Modifier.weight(1f))
     }
 }
 
@@ -444,96 +385,6 @@ fun InfoLine(
     ) {
         Text(text = "$icon $label", color = Color.LightGray, fontSize = 14.sp)
         Text(text = value, color = Color.White, fontSize = 14.sp)
-    }
-}
-
-@Composable
-fun ProfileStatsRow() {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        StatCard("12", "Subastas", Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(10.dp))
-        StatCard("34", "Pujas", Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(10.dp))
-        StatCard("8", "Ganadas", Modifier.weight(1f))
-    }
-}
-
-@Composable
-fun StatCard(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier
-) {
-
-    Card(
-        modifier = modifier.height(82.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.11f)
-        )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = value, color = Color.White, fontSize = 22.sp)
-                Text(text = label, color = Color.LightGray, fontSize = 13.sp)
-            }
-        }
-    }
-}
-
-@Composable
-fun WalletCard(
-    saldo: Float,
-    onAddBalance: () -> Unit,
-    onHistory: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.13f)
-        )
-    ) {
-        Column(modifier = Modifier.padding(22.dp)) {
-            Text(text = "💳 Wallet LaPuja", color = Color.White, fontSize = 20.sp)
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(text = "Saldo disponible", color = Color.LightGray, fontSize = 16.sp)
-
-            Text(
-                text = "$${String.format("%.2f", saldo)}",
-                color = Color.White,
-                fontSize = 40.sp
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = onAddBalance,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                ) {
-                    Text("+ Agregar")
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                OutlinedButton(
-                    onClick = onHistory,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                ) {
-                    Text("Historial")
-                }
-            }
-        }
     }
 }
 
